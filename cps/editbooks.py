@@ -442,6 +442,8 @@ def meta():
                 if shelf_title:
                     shelf.add_to_shelf_as_guest(shelf_id, book_id)
 
+                os.remove(requested_file.name)
+
                 if len(requested_files) < 2:
                     resp = {
                         "location": url_for(
