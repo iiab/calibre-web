@@ -1568,7 +1568,8 @@ def read_book(book_id, book_format):
             if book_format.lower() == fileExt:
                 entries = calibre_db.get_filtered_book(book_id)
                 log.debug("Start video watching for %d", book_id)
-                return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
+                return render_title_template('watchvideo.html', videofile=book_id, videoformat=book_format.lower(),
+                                             entry=entries, bookmark=bookmark)
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
                 all_name = str(book_id)
