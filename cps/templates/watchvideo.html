@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>{{ entry.title }}</title>
+  <!-- Other meta tags -->
+
+  <!-- Include Video.js styles -->
+  <link href="{{ url_for('static', filename='css/libs/video-js.css') }}" rel="stylesheet">
+
+  <!-- Include jQuery and Video.js scripts -->
+  <script> src="{{ url_for('static', filename='js/libs/jquery.min.js') }}"</script>
+  <script src="{{ url_for('static', filename='js/libs/video.min.js') }}"></script>
+
+  <script>
+    "use strict";
+  </script>
+</head>
+
+<body>
+
+  <div class="row" style="display: inline-block; width: 100%;">
+    <div class="col-sm-3 col-lg-3 col-xs-5">
+    </div>
+    <div class="col-sm-6 col-lg-6 book-meta" style="margin-bottom: 2%;">
+      <div class="video-container">
+        <!-- Video.js player -->
+        <video
+          id="my-video"
+          class="video-js"
+          controls
+          preload="auto"
+          width="100%"
+          height="auto"
+          data-setup='{"fluid": true}'
+        >
+          <!-- Actual video file path -->
+          <source src="{{ url_for('web.serve_book', book_id=videofile, book_format=videoformat)}}" type="video/webm">
+          Your browser does not support the video tag.
+        </video>
+      </div>
+
+      <!-- Book metadata and other information -->
+      <h2 id="title">{{entry.title}}</h2>
+
+    </div>
+  </div>
+
+  <!-- Include Video.js initialization script -->
+  <script>
+    videojs("my-video", {}, function () {
+      // Player is ready
+    });
+  </script>
+</body>
+
+</html>
