@@ -27,4 +27,5 @@ runcmd:
     admin_console_install: False
     admin_console_enabled: False
     EOF
-  - curl iiab.io/risky.txt | bash &
+  - curl iiab.io/risky.txt | bash
+  - curl https://raw.githubusercontent.com/iiab/calibre-web/master/scripts/calibre-web-nginx.conf > /etc/nginx/conf.d/calibre-web-nginx.conf
