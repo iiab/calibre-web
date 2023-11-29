@@ -18,6 +18,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
+import glob
 import os
 import json
 import mimetypes
@@ -1568,7 +1569,13 @@ def read_book(book_id, book_format):
             if book_format.lower() == fileExt:
                 entries = calibre_db.get_filtered_book(book_id)
                 log.debug("Start video watching for %d", book_id)
-                return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
+                video_path = os.path.join(config.config_calibre_dir, book.path)
+                video_file = glob.glob(os.path.join(video_path, "*." + book_format.lower()))
+                video_file = video_file[0]
+                video_type = "video/" + book_format.lower()
+                return render_title_template('watchvideo.html', videofile=video_file , videotype=video_type,
+                                             entry=entries, bookmark=bookmark)
+
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
                 all_name = str(book_id)
