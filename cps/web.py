@@ -1570,8 +1570,20 @@ def read_book(book_id, book_format):
                 entries = calibre_db.get_filtered_book(book_id)
                 log.debug("Start video watching for %d", book_id)
                 video_path = os.path.join(config.config_calibre_dir, book.path)
-                video_file = glob.glob(os.path.join(video_path, "*." + book_format.lower()))
-                video_file = video_file[0]
+                # look into video_path for any file with webm or mp4 extension
+                video_file = ""
+                for file in os.listdir(video_path):
+                    if file.endswith(".webm") or file.endswith(".mp4"):
+                        video_file = os.path.join(video_path, file)
+                        # align with nginx path
+                        video_file = video_file.replace(config.config_calibre_dir, "/books-direct")
+                        log.debug("Found video file: %s", video_file)
+                        break
+                if not video_file:
+                    log.debug("Selected book is unavailable. File does not exist or is not accessible")
+                    flash(_("Oops! Selected book is unavailable. File does not exist or is not accessible"),
+                          category="error")
+                    return redirect(url_for("web.index"))
                 video_type = "video/" + book_format.lower()
                 return render_title_template('watchvideo.html', videofile=video_file , videotype=video_type,
                                              entry=entries, bookmark=bookmark)
