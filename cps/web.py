@@ -1574,7 +1574,8 @@ def read_book(book_id, book_format):
                 for file in os.listdir(video_path):
                     if file.endswith(".webm") or file.endswith(".mp4"):
                         video_file = os.path.join(video_path, file)
-                        # align with nginx path
+                        # align with nginx path (e.g. "books-direct") specified on Lines ~24 and ~29 of:
+                        # https://github.com/iiab/calibre-web/blob/master/scripts/calibre-web-nginx.conf
                         video_file = video_file.replace(config.config_calibre_dir, "/books-direct")
                         log.debug("Found video file: %s", video_file)
                         break
