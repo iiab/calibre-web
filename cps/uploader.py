@@ -261,14 +261,22 @@ def video_metadata(tmp_file_path, original_file_name, original_file_extension):
             if row is not None:
                 title = row['title']
                 author = row['path'].split('/calibre-web/')[1].split('/')[1].replace('_', ' ')
-                description = row['description']
                 publisher = row['path'].split('/calibre-web/')[1].split('/')[0].replace('_', ' ')
                 # example of time_uploaded: 1696464000
                 pubdate = row['time_uploaded']
                 pubdate = datetime.datetime.fromtimestamp(pubdate).strftime('%Y-%m-%d %H:%M:%S')
-
-                # read row[path] to get video file, replace its extension with .webp
-                cover_file_path = row['path'].replace('.webm', '.webp')
+                # find cover file
+                if os.path.isdir(os.path.dirname(row['path'])):
+                    for file in os.listdir(os.path.dirname(row['path'])):
+                        if file.lower().endswith(('.webp', '.jpg', '.png', '.gif')) and os.path.splitext(file)[0] == os.path.splitext(os.path.basename(row['path']))[0]:
+                            cover_file_path = os.path.join(os.path.dirname(row['path']), file)
+                            break
+                else:
+                    log.warning('Cannot find .webp file, using default cover')
+                    cover_file_path = os.path.splitext(tmp_file_path)[0] + '.cover.jpg'
+                c.execute("SELECT * FROM captions WHERE media_id=?", (1,))
+                row = c.fetchone()
+                description = row['text'] if row is not None else ''
                 meta = BookMeta(
                     file_path=tmp_file_path,
                     extension=original_file_extension,
@@ -286,7 +294,7 @@ def video_metadata(tmp_file_path, original_file_name, original_file_extension):
                 return meta
             conn.close()
         else:
-            log.warning('Cannot find download.db, using default')
+            log.warning('Cannot find survey database, using default metadata')
     else:
         meta = BookMeta(
             file_path=tmp_file_path,
