@@ -2,12 +2,12 @@ import os
 import requests
 import sqlite3
 import subprocess
+import re
 from datetime import datetime
 from flask import flash
-from flask_babel import lazy_gettext as N_, gettext as _
+from flask_babel import lazy_gettext as N_
 from cps.constants import SURVEY_DB_FILE
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
-from cps.subproc_wrapper import process_open
 from .. import logger
 
 log = logger.create()
@@ -37,80 +37,74 @@ class TaskDownload(CalibreTask):
             subprocess_args = [lb_executable, self.media_url]
             log.info("Subprocess args: %s", subprocess_args)
 
-            # Execute the download process using process_open
             try:
-                p = process_open(subprocess_args, newlines=True)
-                while p.poll() is None:
-                    line = p.stdout.readline()
-                    self.message = "Extracting metadata..."
-                    if line:
-                        log.info(line)
-                        if "creating" in line:
-                            self.progress += 0.025
-                        log.info("Download progress: %s", self.progress)
-                        if "Running ANALYZE" in line:
-                            self.progress = 0
-                            line = p.stdout.readline()
-                        if "extracting" in line:
-                            self.message = "Downloading media..."
-                            self.progress += 0.077
-                        elif "downloading" in line:
-                            self.progress += 0.077
-                        elif "download" in line:
-                            self.progress += 0.077
-                        elif "merging" in line:
-                            self.progress += 0.077
-                        elif "adding" in line:
-                            self.progress += 0.075
-                            break
-                        else:
-                            self.progress += 0.077
-                        log.info("Download progress: %s", self.progress)
-                        p.wait()
+                p = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+
+                for line in p.stdout:
+                    log.info(line.strip())
+
+                    # Check if the line contains progress information
+                    match = re.search(r'\[download\]:\s+(\d+\.\d)%', line)
+                    if match:
+                        percentage = float(match.group(1))
+                        self.progress = percentage / 100.0
+
+                p.communicate()  # Wait for the process to complete
+
+                self.progress = 1.0
+
                 # Database operations
-                try:
-                    requested_files = []
-                    with sqlite3.connect(SURVEY_DB_FILE) as conn:
+                requested_files = []
+                with sqlite3.connect(SURVEY_DB_FILE) as conn:
+                    try:
+                        # Get the requested files from the database
                         requested_files = list(set([row[0] for row in conn.execute("SELECT path FROM media").fetchall() if not row[0].startswith("http")]))
+                        log.info("Requested files: %s", requested_files)
 
-                        conn.execute("SELECT title FROM playlists")
-                        shelf_title = conn.fetchone()[0] if conn.fetchone() else None
-
-                        if self.original_url:
-                            response = requests.get(self.original_url, params={"requested_files": requested_files, "current_user_name": self.current_user_name, "shelf_title": shelf_title})
-                            if response.status_code == 200:
-                                log.info("Successfully sent the list of requested files to %s", self.original_url)
-                            else:
-                                log.error("Failed to send the list of requested files to %s", self.original_url)
-                except sqlite3.Error as db_error:
-                    if "no such table: playlists" in str(db_error):
-                        log.info("No playlists table found in the database")
-                    else:
+                        # Abort if there are no requested files
+                        if not requested_files:
+                            log.info("No requested files found in the database")
+                            # Log the error found in the database
+                            error = conn.execute("SELECT error, webpath FROM media WHERE error IS NOT NULL").fetchone()
+                            if error:
+                                log.error("[xklb] An error occurred while trying to download %s: %s", error[1], error[0])
+                                self.progress = 0
+                            return
+                    except sqlite3.Error as db_error:
                         log.error("An error occurred while trying to connect to the database: %s", db_error)
-                finally:
-                    shelf_title = None
-                    conn.close()
+                    
+                    # get the shelf title if it exists
+                    try:
+                        shelf_title = conn.execute("SELECT title FROM playlists").fetchone()[0]                                
+                    except sqlite3.Error as db_error:
+                        if "no such table: playlists" in str(db_error):
+                            log.info("No playlists table found in the database")
+                        else:
+                            log.error("An error occurred while trying to connect to the database: %s", db_error)
+                    finally:
+                        shelf_title = None
 
-                if self.original_url:
-                    response = requests.get(self.original_url, params={"requested_files": requested_files, "current_user_name": self.current_user_name, "shelf_title": shelf_title})
-                    if response.status_code == 200:
-                        log.info("Successfully sent the list of requested files to %s", self.original_url)
-                    else:
-                        log.error("Failed to send the list of requested files to %s", self.original_url)
+                conn.close() 
 
-                # Set the progress to 100% and the end time to the current time
-                self.progress = 1
-                self.end_time = datetime.now()
-                self.stat = STAT_FINISH_SUCCESS
-
+                response = requests.get(self.original_url, params={"requested_files": requested_files, "current_user_name": self.current_user_name, "shelf_title": shelf_title})
+                if response.status_code == 200:
+                    log.info("Successfully sent the list of requested files to %s", self.original_url)
+                else:
+                    log.error("Failed to send the list of requested files to %s", self.original_url)
+                    self.progress = 0
+            
             except subprocess.CalledProcessError as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
-                # Handling subprocess failure or errors
                 flash("Failed to complete the download process", category="error")
-                self.stat = STAT_FAIL
+
+            finally:
+                if p.returncode == 0 and self.progress == 1.0:
+                    self.stat = STAT_FINISH_SUCCESS
+                else:
+                    self.stat = STAT_FAIL
 
         else:
-            log.info("No media URL provided")
+            log.info("No media URL provided - skipping download task")
 
     @property
     def name(self):
