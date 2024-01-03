@@ -1,10 +1,10 @@
 import os
 import requests
 import sqlite3
+import subprocess
 from datetime import datetime
 from flask import flash
 from flask_babel import lazy_gettext as N_, gettext as _
-
 from cps.constants import SURVEY_DB_FILE
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
 from cps.subproc_wrapper import process_open
@@ -15,6 +15,7 @@ log = logger.create()
 class TaskDownload(CalibreTask):
     def __init__(self, task_message, media_url, original_url, current_user_name):
         super(TaskDownload, self).__init__(task_message)
+        self.message = task_message
         self.media_url = media_url
         self.original_url = original_url
         self.current_user_name = current_user_name
@@ -23,14 +24,14 @@ class TaskDownload(CalibreTask):
         self.progress = 0
 
     def run(self, worker_thread):
-        """Run the download task"""
+        """Run the download task."""
         self.worker_thread = worker_thread
         log.info("Starting download task for URL: %s", self.media_url)
-        self.start_time  = self.end_time = datetime.now()
+        self.start_time = datetime.now()
         self.stat = STAT_STARTED
         self.progress = 0
 
-        lb_executable = self.get_lb_executable()
+        lb_executable = os.getenv("LB_WRAPPER", "lb-wrapper")
 
         if self.media_url:
             subprocess_args = [lb_executable, self.media_url]
@@ -39,39 +40,41 @@ class TaskDownload(CalibreTask):
             # Execute the download process using process_open
             try:
                 p = process_open(subprocess_args, newlines=True)
-
-                # Define the pattern for the subprocess output
-                pattern_analyze = r"Running ANALYZE"
-                pattern_download = r"'action': 'download'"
-
                 while p.poll() is None:
                     line = p.stdout.readline()
+                    self.message = "Extracting metadata..."
                     if line:
                         log.info(line)
-                        if pattern_analyze in line:
-                            log.info("Matched output (ANALYZE): %s", line)
-                            self.progress = 0.1
-                        if pattern_download in line:
-                            log.info("Matched output (download): %s", line)
-                            self.progress = 0.5
-                            
-                        p.wait()
-
-                        # Database operations
-                        requested_files = []
-                        conn = sqlite3.connect(SURVEY_DB_FILE)
-                        c = conn.cursor()
-                        c.execute("SELECT path FROM media")
-                        for row in c.fetchall():
-                            requested_files.append(row[0])
-
-                        c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='playlists'")
-                        if c.fetchone():
-                            c.execute("SELECT title FROM playlists")
-                            shelf_title = c.fetchone()[0]
+                        if "creating" in line:
+                            self.progress += 0.025
+                        log.info("Download progress: %s", self.progress)
+                        if "Running ANALYZE" in line:
+                            self.progress = 0
+                            line = p.stdout.readline()
+                        if "extracting" in line:
+                            self.message = "Downloading media..."
+                            self.progress += 0.077
+                        elif "downloading" in line:
+                            self.progress += 0.077
+                        elif "download" in line:
+                            self.progress += 0.077
+                        elif "merging" in line:
+                            self.progress += 0.077
+                        elif "adding" in line:
+                            self.progress += 0.075
+                            break
                         else:
-                            shelf_title = None
-                        conn.close()
+                            self.progress += 0.077
+                        log.info("Download progress: %s", self.progress)
+                        p.wait()
+                # Database operations
+                try:
+                    requested_files = []
+                    with sqlite3.connect(SURVEY_DB_FILE) as conn:
+                        requested_files = list(set([row[0] for row in conn.execute("SELECT path FROM media").fetchall() if not row[0].startswith("http")]))
+
+                        conn.execute("SELECT title FROM playlists")
+                        shelf_title = conn.fetchone()[0] if conn.fetchone() else None
 
                         if self.original_url:
                             response = requests.get(self.original_url, params={"requested_files": requested_files, "current_user_name": self.current_user_name, "shelf_title": shelf_title})
@@ -79,13 +82,28 @@ class TaskDownload(CalibreTask):
                                 log.info("Successfully sent the list of requested files to %s", self.original_url)
                             else:
                                 log.error("Failed to send the list of requested files to %s", self.original_url)
+                except sqlite3.Error as db_error:
+                    if "no such table: playlists" in str(db_error):
+                        log.info("No playlists table found in the database")
+                    else:
+                        log.error("An error occurred while trying to connect to the database: %s", db_error)
+                finally:
+                    shelf_title = None
+                    conn.close()
+
+                if self.original_url:
+                    response = requests.get(self.original_url, params={"requested_files": requested_files, "current_user_name": self.current_user_name, "shelf_title": shelf_title})
+                    if response.status_code == 200:
+                        log.info("Successfully sent the list of requested files to %s", self.original_url)
+                    else:
+                        log.error("Failed to send the list of requested files to %s", self.original_url)
 
                 # Set the progress to 100% and the end time to the current time
                 self.progress = 1
                 self.end_time = datetime.now()
                 self.stat = STAT_FINISH_SUCCESS
 
-            except Exception as e:
+            except subprocess.CalledProcessError as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
                 # Handling subprocess failure or errors
                 flash("Failed to complete the download process", category="error")
@@ -94,16 +112,12 @@ class TaskDownload(CalibreTask):
         else:
             log.info("No media URL provided")
 
-    def get_lb_executable(self):
-        lb_executable = os.getenv("LB_WRAPPER", "lb-wrapper")
-        return lb_executable
-
     @property
     def name(self):
         return N_("Download")
 
     def __str__(self):
-        return "Download %s" % self.media_url
+        return f"Download {self.media_url}"
 
     @property
     def is_cancellable(self):
