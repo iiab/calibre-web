@@ -25,24 +25,33 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-# URL validation already taken care of by cps/static/js/main.js Lines 194-195
-# which (1) trims outer whitespace, and (2) prepends https:// if URL doesn't
-# already begin with http:// or https://
-# (Test below meant well, enforcing much the same things with logging, but
-# let's avoid duplicate code insofar as possible!)
-# if [[ ! ${URL} =~ ^http[s]?:// ]]; then
-#     log 'Invalid URL: xklb commands require URLs begin with "http://" or "https://"'
-#     exit 1
-# fi
-
 if mv ${SURVEY_DB_FILE} ${SURVEY_DB_FILE}.$(date +%F_%T_%Z) 2> /dev/null; then
     log "Old ${SURVEY_DB_FILE} moved aside."
 fi
 
+# Generate a dynamic name for the polling file
+polling_file="/tmp/xklb_polling_$$"
+
 log "Running command: ${XKLB_FULL_CMD}"
-if OUTPUT=$(eval "${XKLB_FULL_CMD}"); then
+
+# Run the command in the background and capture the PID
+eval "${XKLB_FULL_CMD}" > "$polling_file" 2>&1 &
+pid=$!
+
+# Periodically check the output
+while ps -p $pid > /dev/null; do
+    # Process the contents of the polling file, e.g., tail it or parse it for progress
+    grep 'downloading' "$polling_file"  # Adjust this line based on the actual output
+    sleep 0.1
+done
+
+# Read the final output after the command completes
+if OUTPUT=$(cat "$polling_file"); then
     log "Download completed successfully."
 else
     log "An error occurred while running the command. Output: ${OUTPUT}"
     exit 1
 fi
+
+# Remove the polling file
+rm "$polling_file"
