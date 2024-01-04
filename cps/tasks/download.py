@@ -3,7 +3,6 @@ import requests
 import sqlite3
 import re
 from datetime import datetime
-from flask import flash
 from flask_babel import lazy_gettext as N_
 from cps.constants import SURVEY_DB_FILE
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
@@ -73,9 +72,11 @@ class TaskDownload(CalibreTask):
                             if error:
                                 log.error("[xklb] An error occurred while trying to download %s: %s", error[1], error[0])
                                 self.progress = 0
+                                self.message = "{error[1]} failed to download: {error[0]}"
                             return
                     except sqlite3.Error as db_error:
                         log.error("An error occurred while trying to connect to the database: %s", db_error)
+                        self.message = "{self.media_url} failed to download: {db_error}"
                     
                     # get the shelf title
                     try:
@@ -85,6 +86,8 @@ class TaskDownload(CalibreTask):
                             log.info("No playlists table found in the database")
                         else:
                             log.error("An error occurred while trying to connect to the database: %s", db_error)
+                            self.message = "{self.media_url} failed to download: {db_error}"
+                            self.progress = 0
                     finally:
                         shelf_title = None
 
@@ -96,10 +99,11 @@ class TaskDownload(CalibreTask):
                 else:
                     log.error("Failed to send the list of requested files to %s", self.original_url)
                     self.progress = 0
+                    self.message = "{self.media_url} failed to download: {response.status_code} {response.reason}"
             
             except Exception as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
-                flash("Failed to complete the download process", category="error")
+                self.message = "{self.media_url} failed to download: {e}"
 
             finally:
                 if p.returncode == 0 and self.progress == 1.0:
