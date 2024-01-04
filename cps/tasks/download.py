@@ -1,13 +1,13 @@
 import os
 import requests
 import sqlite3
-import subprocess
 import re
 from datetime import datetime
 from flask import flash
 from flask_babel import lazy_gettext as N_
 from cps.constants import SURVEY_DB_FILE
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
+from cps.subproc_wrapper import process_open
 from .. import logger
 
 log = logger.create()
@@ -19,7 +19,7 @@ class TaskDownload(CalibreTask):
         self.media_url = media_url
         self.original_url = original_url
         self.current_user_name = current_user_name
-        self.start_time = self.end_time = datetime.now()
+        self.start_time = datetime.now()
         self.stat = STAT_WAITING
         self.progress = 0
 
@@ -27,7 +27,7 @@ class TaskDownload(CalibreTask):
         """Run the download task."""
         self.worker_thread = worker_thread
         log.info("Starting download task for URL: %s", self.media_url)
-        self.start_time = datetime.now()
+        self.start_time = self.end_time = datetime.now()
         self.stat = STAT_STARTED
         self.progress = 0
 
@@ -38,20 +38,26 @@ class TaskDownload(CalibreTask):
             log.info("Subprocess args: %s", subprocess_args)
 
             try:
-                p = subprocess.Popen(subprocess_args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True)
+                p = process_open(subprocess_args, newlines=True)
+                pattern_progress = r'downloading'
 
-                for line in p.stdout:
-                    log.info(line.strip())
+                while p.poll() is None:
+                    line = p.stdout.readline()
+                    if line:
+                        if pattern_progress in line:
+                            percentage = int(re.search(r'\d+', line).group())
+                            if percentage < 100:
+                                self.message = "Downloading learning media from {self.media_url}"
+                                self.progress = percentage / 100
+                            else:
+                                self.message = "Processing learning media from {self.media_url}"
+                                self.progress = 0.99
 
-                    # Check if the line contains progress information
-                    match = re.search(r'\[download\]:\s+(\d+\.\d)%', line)
-                    if match:
-                        percentage = float(match.group(1))
-                        self.progress = percentage / 100.0
 
-                p.communicate()  # Wait for the process to complete
-
+                p.wait()
                 self.progress = 1.0
+                self.message = "Downloaded learning media from {self.media_url}"
+
 
                 # Database operations
                 requested_files = []
@@ -59,12 +65,10 @@ class TaskDownload(CalibreTask):
                     try:
                         # Get the requested files from the database
                         requested_files = list(set([row[0] for row in conn.execute("SELECT path FROM media").fetchall() if not row[0].startswith("http")]))
-                        log.info("Requested files: %s", requested_files)
 
                         # Abort if there are no requested files
                         if not requested_files:
                             log.info("No requested files found in the database")
-                            # Log the error found in the database
                             error = conn.execute("SELECT error, webpath FROM media WHERE error IS NOT NULL").fetchone()
                             if error:
                                 log.error("[xklb] An error occurred while trying to download %s: %s", error[1], error[0])
@@ -73,7 +77,7 @@ class TaskDownload(CalibreTask):
                     except sqlite3.Error as db_error:
                         log.error("An error occurred while trying to connect to the database: %s", db_error)
                     
-                    # get the shelf title if it exists
+                    # get the shelf title
                     try:
                         shelf_title = conn.execute("SELECT title FROM playlists").fetchone()[0]                                
                     except sqlite3.Error as db_error:
@@ -93,7 +97,7 @@ class TaskDownload(CalibreTask):
                     log.error("Failed to send the list of requested files to %s", self.original_url)
                     self.progress = 0
             
-            except subprocess.CalledProcessError as e:
+            except Exception as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
                 flash("Failed to complete the download process", category="error")
 
@@ -111,7 +115,7 @@ class TaskDownload(CalibreTask):
         return N_("Download")
 
     def __str__(self):
-        return f"Download {self.media_url}"
+        return f"Download task for {self.media_url}"
 
     @property
     def is_cancellable(self):
