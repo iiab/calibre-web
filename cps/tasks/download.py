@@ -46,16 +46,16 @@ class TaskDownload(CalibreTask):
                         if pattern_progress in line:
                             percentage = int(re.search(r'\d+', line).group())
                             if percentage < 100:
-                                self.message = "Downloading learning media from {self.media_url}"
+                                self.message = f"Downloading learning media from {self.media_url}"
                                 self.progress = percentage / 100
                             else:
-                                self.message = "Processing learning media from {self.media_url}"
+                                self.message = f"Processing learning media from {self.media_url}"
                                 self.progress = 0.99
 
 
                 p.wait()
                 self.progress = 1.0
-                self.message = "Downloaded learning media from {self.media_url}"
+                self.message = f"Downloaded learning media from {self.media_url}"
 
 
                 # Database operations
@@ -72,11 +72,11 @@ class TaskDownload(CalibreTask):
                             if error:
                                 log.error("[xklb] An error occurred while trying to download %s: %s", error[1], error[0])
                                 self.progress = 0
-                                self.message = "{error[1]} failed to download: {error[0]}"
+                                self.message = f"{error[1]} failed to download: {error[0]}"
                             return
                     except sqlite3.Error as db_error:
                         log.error("An error occurred while trying to connect to the database: %s", db_error)
-                        self.message = "{self.media_url} failed to download: {db_error}"
+                        self.message = f"{self.media_url} failed to download: {db_error}"
                     
                     # get the shelf title
                     try:
@@ -86,7 +86,7 @@ class TaskDownload(CalibreTask):
                             log.info("No playlists table found in the database")
                         else:
                             log.error("An error occurred while trying to connect to the database: %s", db_error)
-                            self.message = "{self.media_url} failed to download: {db_error}"
+                            self.message = f"{self.media_url} failed to download: {db_error}"
                             self.progress = 0
                     finally:
                         shelf_title = None
@@ -99,11 +99,11 @@ class TaskDownload(CalibreTask):
                 else:
                     log.error("Failed to send the list of requested files to %s", self.original_url)
                     self.progress = 0
-                    self.message = "{self.media_url} failed to download: {response.status_code} {response.reason}"
+                    self.message = f"{self.media_url} failed to download: {response.status_code} {response.reason}"
             
             except Exception as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
-                self.message = "{self.media_url} failed to download: {e}"
+                self.message = f"{self.media_url} failed to download: {e}"
 
             finally:
                 if p.returncode == 0 and self.progress == 1.0:
