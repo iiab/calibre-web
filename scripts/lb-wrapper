@@ -6,7 +6,7 @@ TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
 SURVEY_DB_FILE="${TMP_DOWNLOADS_DIR}/survey.db"
 URL="$1"
 FORMAT_OPTIONS="--format best --format-sort 'tbr~1000'"
-XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} && ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} -vv"
+XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} && ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} -v"
 
 mkdir -p ${TMP_DOWNLOADS_DIR}
 
@@ -29,29 +29,24 @@ if mv ${SURVEY_DB_FILE} ${SURVEY_DB_FILE}.$(date +%F_%T_%Z) 2> /dev/null; then
     log "Old ${SURVEY_DB_FILE} moved aside."
 fi
 
-# Generate a dynamic name for the polling file
-polling_file="/tmp/xklb_polling_$$"
-
 log "Running command: ${XKLB_FULL_CMD}"
 
 # Run the command in the background and capture the PID
-eval "${XKLB_FULL_CMD}" > "$polling_file" 2>&1 &
-pid=$!
+eval "${XKLB_FULL_CMD}" 2>&1 | (
+  while IFS= read -r line; do
+    # Process each line, e.g., log lines containing 'downloading'
+    echo "$line" | grep 'downloading'  # Adjust this line based on the actual output
+    log "$line"
+  done
+)
 
-# Periodically check the output
-while ps -p $pid > /dev/null; do
-    # Process the contents of the polling file, e.g., tail it or parse it for progress
-    grep 'downloading' "$polling_file"  # Adjust this line based on the actual output
-    sleep 0.1
-done
+# Wait for the background process to complete
+wait $pid
 
-# Read the final output after the command completes
-if OUTPUT=$(cat "$polling_file"); then
+# Check the exit status of the command
+if [ $? -eq 0 ]; then
     log "Download completed successfully."
 else
-    log "An error occurred while running the command. Output: ${OUTPUT}"
+    log "An error occurred while running the command."
     exit 1
 fi
-
-# Remove the polling file
-rm "$polling_file"
