@@ -1,53 +1,50 @@
 #!/bin/bash
 
 LOG_FILE="/var/log/xklb.log"
+LOG_LEVEL="-vv"
 XKLB_EXECUTABLE="${XKLB_EXECUTABLE:-lb}"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
 SURVEY_DB_FILE="${TMP_DOWNLOADS_DIR}/survey.db"
 URL="$1"
 FORMAT_OPTIONS="--format best --format-sort 'tbr~1000'"
-XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} && ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} -vv"
+XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} ${LOG_LEVEL}&& ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} ${LOG_LEVEL}"
 
 mkdir -p ${TMP_DOWNLOADS_DIR}
 
 # Function to log messages with different levels
 log() {
-    local message=$1
-    echo "$(date +'%Y-%m-%d %H:%M:%S') - $message" >> ${LOG_FILE}
+    local level=$1
+    local message=$2
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - [$level] $message" >> ${LOG_FILE}
 }
 
 if ! command -v "${XKLB_EXECUTABLE}"; then
-    log "Error: xklb could not be found. Please install xklb and try again."
+    log "Error" "xklb could not be found. Please install xklb and try again."
     exit 1
 fi
 
 if [ $# -eq 0 ]; then
-    log "Error: No arguments provided. Please provide a URL to download."
+    log "Error" "No arguments provided. Please provide a URL to download."
     exit 1
 fi
 
 if mv ${SURVEY_DB_FILE} ${SURVEY_DB_FILE}.$(date +%F_%T_%Z) 2> /dev/null; then
-    log "Info: Old ${SURVEY_DB_FILE} moved aside."
+    log "Info" "Old ${SURVEY_DB_FILE} moved aside."
 fi
 
-log "Info: Running command: ${XKLB_FULL_CMD}"
+log "Info" "Running command: ${XKLB_FULL_CMD}"
 
 # Run the command in the background and capture the PID
-eval "${XKLB_FULL_CMD}" 2>&1 | (
-  while IFS= read -r line; do
-    # Process each line, e.g., log lines containing 'downloading'
-    echo "$line" | grep 'downloading'  # Adjust this line based on the actual output
-    log "$line"
-  done
-)
+eval "${XKLB_FULL_CMD}" > >(while read -r line; do log "Info" "$line"; done) 2> >(while read -r line; do log "Error" "$line"; done) &
+pid=$!
 
 # Wait for the background process to complete
 wait $pid
 
 # Check the exit status of the command
 if [ $? -eq 0 ]; then
-    log "Info: Download completed successfully."
+    log "Info" "Download completed successfully."
 else
-    log "Error: An error occurred while running the command."
+    log "Error" "An error occurred while running the command."
     exit 1
 fi
