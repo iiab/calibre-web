@@ -1,57 +1,50 @@
 #!/bin/bash
 
 LOG_FILE="/var/log/xklb.log"
+LOG_LEVEL="-vv"
 XKLB_EXECUTABLE="${XKLB_EXECUTABLE:-lb}"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
 SURVEY_DB_FILE="${TMP_DOWNLOADS_DIR}/survey.db"
 URL="$1"
 FORMAT_OPTIONS="--format best --format-sort 'tbr~1000'"
-XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} && ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} -vv"
+XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} ${LOG_LEVEL}&& ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} ${LOG_LEVEL}"
 
 mkdir -p ${TMP_DOWNLOADS_DIR}
 
-# Function to log messages (and errors especially!)
+# Function to log messages with different levels
 log() {
-    echo "$(date +'%Y-%m-%d %H:%M:%S') - $1" | tee -a ${LOG_FILE}
+    local level=$1
+    local message=$2
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - [$level] $message" >> ${LOG_FILE}
 }
 
 if ! command -v "${XKLB_EXECUTABLE}"; then
-    log "xklb could not be found. Please install xklb and try again."
+    log "Error" "xklb could not be found. Please install xklb and try again."
     exit 1
 fi
 
 if [ $# -eq 0 ]; then
-    log "No arguments provided. Please provide a URL to download."
+    log "Error" "No arguments provided. Please provide a URL to download."
     exit 1
 fi
 
 if mv ${SURVEY_DB_FILE} ${SURVEY_DB_FILE}.$(date +%F_%T_%Z) 2> /dev/null; then
-    log "Old ${SURVEY_DB_FILE} moved aside."
+    log "Info" "Old ${SURVEY_DB_FILE} moved aside."
 fi
 
-# Generate a dynamic name for the polling file
-polling_file="/tmp/xklb_polling_$$"
-
-log "Running command: ${XKLB_FULL_CMD}"
+log "Info" "Running command: ${XKLB_FULL_CMD}"
 
 # Run the command in the background and capture the PID
-eval "${XKLB_FULL_CMD}" > "$polling_file" 2>&1 &
+eval "${XKLB_FULL_CMD}" > >(while read -r line; do log "Info" "$line"; done) 2> >(while read -r line; do log "Error" "$line"; done) &
 pid=$!
 
-# Periodically check the output
-while ps -p $pid > /dev/null; do
-    # Process the contents of the polling file, e.g., tail it or parse it for progress
-    grep 'downloading' "$polling_file"  # Adjust this line based on the actual output
-    sleep 0.1
-done
+# Wait for the background process to complete
+wait $pid
 
-# Read the final output after the command completes
-if OUTPUT=$(cat "$polling_file"); then
-    log "Download completed successfully."
+# Check the exit status of the command
+if [ $? -eq 0 ]; then
+    log "Info" "Download completed successfully."
 else
-    log "An error occurred while running the command. Output: ${OUTPUT}"
+    log "Error" "An error occurred while running the command."
     exit 1
 fi
-
-# Remove the polling file
-rm "$polling_file"
