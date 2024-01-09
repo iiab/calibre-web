@@ -6,13 +6,8 @@ XKLB_EXECUTABLE="${XKLB_EXECUTABLE:-lb}"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
 SURVEY_DB_FILE="${TMP_DOWNLOADS_DIR}/survey.db"
 URL="$1"
-
-# Or download largest possible HD-style / UltraHD videos, to try to force
-# out-of-memory "502 Bad Gateway" for testing of issues like #37 and #79
-# FORMAT_OPTIONS="--format-sort size"
-
 FORMAT_OPTIONS="--format best --format-sort 'tbr~1000'"
-XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} ${LOG_LEVEL} && ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} ${LOG_LEVEL}"
+XKLB_FULL_CMD="${XKLB_EXECUTABLE} tubeadd ${SURVEY_DB_FILE} ${URL} ${LOG_LEVEL}&& ${XKLB_EXECUTABLE} dl ${SURVEY_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --write-thumbnail ${FORMAT_OPTIONS} --video ${URL} ${LOG_LEVEL}"
 
 mkdir -p ${TMP_DOWNLOADS_DIR}
 
@@ -36,6 +31,8 @@ if [ $# -eq 0 ]; then
     log "Error" "No arguments provided. Please provide a URL to download."
     exit 1
 fi
+
+log "Info" "xklb version: $(${XKLB_EXECUTABLE} --version)"
 
 if mv ${SURVEY_DB_FILE} ${SURVEY_DB_FILE}.$(date +%F_%T_%Z) 2> /dev/null; then
     log "Info" "Old ${SURVEY_DB_FILE} moved aside."
