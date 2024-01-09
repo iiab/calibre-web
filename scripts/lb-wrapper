@@ -20,7 +20,11 @@ mkdir -p ${TMP_DOWNLOADS_DIR}
 log() {
     local level=$1
     local message=$2
-    echo "$(date +'%Y-%m-%d %H:%M:%S') - [$level] $message" >> ${LOG_FILE}
+    if [[ $message == *"downloading"* ]]; then
+        echo "$message"
+    else
+        echo "$(date +'%Y-%m-%d %H:%M:%S') - [$level] $message" >> ${LOG_FILE}
+    fi
 }
 
 if ! command -v "${XKLB_EXECUTABLE}"; then
