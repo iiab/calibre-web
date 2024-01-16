@@ -382,6 +382,7 @@ def meta():
                 flash(_("There was an error"), category="error")
 
         log.info("Requested files list: %s", requested_files)
+        files_uploaded = []
         for requested_file in requested_files:
             requested_file = open(requested_file, "rb")
             requested_file.filename = os.path.basename(requested_file.name)
@@ -435,22 +436,13 @@ def meta():
                 link = '<a href="{}">{}</a>'.format(
                     url_for("web.show_book", book_id=book_id), escape(title)
                 )
-                upload_text = N_("File %(file)s uploaded", file=link)
-                WorkerThread.add(
-                    current_user_name, TaskUpload(upload_text, escape(title))
-                )
+
+                files_uploaded.append(link)
+
                 helper.add_book_to_thumbnail_cache(book_id)
 
                 if shelf_title:
                     shelf.add_to_shelf_as_guest(shelf_id, book_id)
-
-                if len(requested_files) < 2:
-                    resp = {
-                        "location": url_for(
-                            "edit-book.show_edit_book", book_id=book_id
-                        )
-                    }
-                    return Response(json.dumps(resp), mimetype="application/json")
 
             except (OperationalError, IntegrityError, StaleDataError) as e:
                 calibre_db.session.rollback()
@@ -462,24 +454,20 @@ def meta():
                     ),
                     category="error",
                 )
-        else:
-            flash("Error: No file found", category="error")
-            return False
+        
+        resp = {"files_uploaded": files_uploaded}
+        return resp
 
     if request.method == "GET" and "requested_files" in request.args:
         requested_files = request.args.getlist("requested_files")
         current_user_name = request.args.get("current_user_name", None)
         shelf_title = request.args.get("shelf_title", None)
-        if move_mediafile(requested_files, current_user_name, shelf_title):
-            response = {
-                "success": "Moved media successfully",
-            }
-            return jsonify(response)
-        else:
-            response = {
-                "error": "Failed to move media",
-            }
-            return jsonify(response), 500
+        try:
+            resp = move_mediafile(requested_files, current_user_name, shelf_title)
+            return jsonify(resp)
+        except Exception as ex:
+            log.error_or_exception(ex)
+            return jsonify({"error": str(ex)}), 500
 
 
 @editbook.route("/admin/book/convert/<int:book_id>", methods=['POST'])
