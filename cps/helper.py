@@ -696,15 +696,15 @@ def valid_password(check_password):
         if config.config_password_min_length > 0:
             verify += r"^(?=.{" + str(config.config_password_min_length) + ",}$)"
         if config.config_password_number:
-            verify += "(?=.*?\d)"
+            verify += "(?=.*?\\d)"
         if config.config_password_lower:
-            verify += "(?=.*?[\p{Ll}])"
+            verify += "(?=.*?[\\p{Ll}])"
         if config.config_password_upper:
-            verify += "(?=.*?[\p{Lu}])"
+            verify += "(?=.*?[\\p{Lu}])"
         if config.config_password_character:
-            verify += "(?=.*?[\p{Letter}])"
+            verify += "(?=.*?[\\p{Letter}])"
         if config.config_password_special:
-            verify += "(?=.*?[^\p{Letter}\s0-9])"
+            verify += "(?=.*?[^\\p{Letter}\\s0-9])"
         match = regex.match(verify, check_password)
         if not match:
             raise Exception(_("Password doesn't comply with password validation rules"))
