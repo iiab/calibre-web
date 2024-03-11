@@ -48,7 +48,7 @@ class TaskMetadataExtract(CalibreTask):
             subprocess_args = [lb_executable, "tubeadd", self.media_url]
             log.info("Subprocess args: %s", subprocess_args)
 
-            # Execute the download process using process_open
+            # Execute the metadata fetching process using process_open
             try:
                 p = process_open(subprocess_args, newlines=True)
 
@@ -115,15 +115,44 @@ class TaskMetadataExtract(CalibreTask):
                                 self.progress = 0
                         finally:
                             log.info("Shelf title: %s", self.shelf_title)
+                            response = requests.get(self.original_url, params={"current_user_name": self.current_user_name, "shelf_title": self.shelf_title})
+                            if response.status_code == 200:
+                                self.shelf_id = response.json()["shelf_id"]
+                            else:
+                                log.error("An error occurred while trying to send the shelf title to %s", self.original_url)
+                            
+                        # update the metadata of every video in the shelf
+                        for index, requested_url in enumerate(requested_urls.keys()):
+                            try:
+                                p = process_open([lb_executable, "tubeadd", requested_url], newlines=True)
+                                p.wait()
+                            except Exception as e:
+                                log.error("An error occurred during updating the metadata of %s: %s", requested_url, e)
+                                self.message = f"{requested_url} failed: {e}"
+                        for index, requested_url in enumerate(requested_urls.keys()):
+                            try:
+                                view_count = conn.execute("SELECT view_count FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
+                                time_uploaded = conn.execute("SELECT time_uploaded FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
+                                time_uploaded = datetime.utcfromtimestamp(time_uploaded)
+                                now = datetime.now()
+                                # calculate views per day
+                                days_since_publish = (now - time_uploaded).days
+                                try:
+                                    requested_urls[requested_url]["views_per_day"] = view_count / days_since_publish
+                                except ZeroDivisionError:
+                                    requested_urls[requested_url]["views_per_day"] = 0     
+                            except Exception as e:
+                                log.error("An error occurred during the subprocess execution: %s", e)
+                                self.message = f"{requested_url} failed: {e}"
 
+                        # sort the videos by views per day and only keep the top ones
+                        if len(requested_urls) > 10 and len(requested_urls) <= 50:
+                            requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:10])
+                        elif len(requested_urls) > 50 and len(requested_urls) <= 100:
+                            requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:50])
+                        elif len(requested_urls) > 100:
+                            requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:100])
                 conn.close()
-
-                if self.shelf_title:
-                    response = requests.get(self.original_url, params={"current_user_name": self.current_user_name, "shelf_title": self.shelf_title})
-                    if response.status_code == 200:
-                        self.shelf_id = response.json()["shelf_id"]
-                    else:
-                        log.error("An error occurred while trying to send the shelf title to %s", self.original_url)
 
                 num_requested_urls = len(requested_urls.keys())
                 total_duration = 0
