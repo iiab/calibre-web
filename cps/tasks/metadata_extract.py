@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime
 from flask_babel import lazy_gettext as N_, gettext as _
 
-from cps.constants import XKLB_DB_FILE
+from cps.constants import XKLB_DB_FILE, NUMBER_OF_VIDEOS
 from cps.services.worker import WorkerThread
 from cps.tasks.download import TaskDownload
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
@@ -145,13 +145,9 @@ class TaskMetadataExtract(CalibreTask):
                                 log.error("An error occurred during the subprocess execution: %s", e)
                                 self.message = f"{requested_url} failed: {e}"
 
-                        # sort the videos by views per day and only keep the top ones
-                        if len(requested_urls) > 10 and len(requested_urls) <= 50:
-                            requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:10])
-                        elif len(requested_urls) > 50 and len(requested_urls) <= 100:
-                            requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:50])
-                        elif len(requested_urls) > 100:
-                            requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:100])
+                        # sort the videos by views per day and get the top ones (up to the NUMBER_OF_VIDEOS constant or the length of the dictionary)
+                        requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:min(NUMBER_OF_VIDEOS, len(requested_urls))])
+
                 conn.close()
 
                 num_requested_urls = len(requested_urls.keys())
