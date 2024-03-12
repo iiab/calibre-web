@@ -5,7 +5,7 @@ import sqlite3
 from datetime import datetime
 from flask_babel import lazy_gettext as N_, gettext as _
 
-from cps.constants import XKLB_DB_FILE, NUMBER_OF_VIDEOS
+from cps.constants import XKLB_DB_FILE, MAX_VIDEOS_PER_DOWNLOAD
 from cps.services.worker import WorkerThread
 from cps.tasks.download import TaskDownload
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
@@ -51,7 +51,6 @@ class TaskMetadataExtract(CalibreTask):
             # Execute the metadata fetching process using process_open
             try:
                 p = process_open(subprocess_args, newlines=True)
-
                 p.wait()
                 self_main_message = f"{self.media_url_link}"
                 self.message = self_main_message
@@ -121,32 +120,30 @@ class TaskMetadataExtract(CalibreTask):
                             else:
                                 log.error("An error occurred while trying to send the shelf title to %s", self.original_url)
                             
-                        # update the metadata of every video in the shelf
+                        # update the metadata of the videos in the playlist
                         for index, requested_url in enumerate(requested_urls.keys()):
                             try:
                                 p = process_open([lb_executable, "tubeadd", requested_url], newlines=True)
                                 p.wait()
+                                self.progress = (index + 1) / len(requested_urls) - 0.01
                             except Exception as e:
                                 log.error("An error occurred during updating the metadata of %s: %s", requested_url, e)
                                 self.message = f"{requested_url} failed: {e}"
-                        for index, requested_url in enumerate(requested_urls.keys()):
+                        for requested_url in requested_urls.keys():
                             try:
                                 view_count = conn.execute("SELECT view_count FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
                                 time_uploaded = conn.execute("SELECT time_uploaded FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
                                 time_uploaded = datetime.utcfromtimestamp(time_uploaded)
                                 now = datetime.now()
                                 # calculate views per day
-                                days_since_publish = (now - time_uploaded).days
-                                try:
-                                    requested_urls[requested_url]["views_per_day"] = view_count / days_since_publish
-                                except ZeroDivisionError:
-                                    requested_urls[requested_url]["views_per_day"] = 0     
+                                days_since_publish = (now - time_uploaded).days or 1
+                                requested_urls[requested_url]["views_per_day"] = view_count / days_since_publish
                             except Exception as e:
                                 log.error("An error occurred during the subprocess execution: %s", e)
                                 self.message = f"{requested_url} failed: {e}"
 
-                        # sort the videos by views per day and get the top ones (up to the NUMBER_OF_VIDEOS constant or the length of the dictionary)
-                        requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:min(NUMBER_OF_VIDEOS, len(requested_urls))])
+                        # sort the videos by views per day and get the top ones (up to the maximum number of videos per download or the length of the dictionary)
+                        requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:min(MAX_VIDEOS_PER_DOWNLOAD, len(requested_urls))])
 
                 conn.close()
 
@@ -160,14 +157,17 @@ class TaskMetadataExtract(CalibreTask):
                                                     )
                     WorkerThread.add(self.current_user_name, task_download)
 
-                    self.progress = (index + 1) / num_requested_urls
                     if requested_urls[requested_url]["duration"] is not None:
                         total_duration += requested_urls[requested_url]["duration"]
-                    self.message = self_main_message + f"<br><br>Number of Videos: {index + 1}/{num_requested_urls}<br>Total Duration: {datetime.utcfromtimestamp(total_duration).strftime('%H:%M:%S')}"
+                    self.message = self_main_message + f"<br><br>Number of Videos: {index + 1}/{num_requested_urls}<br>Total Duration: {datetime.utcfromtimestamp(total_duration).strftime('%H:%M:%S')}" 
+
+                self.progress = 1.0
+                self.end_time = datetime.now()
 
             except Exception as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
                 self.message = f"{self.media_url_link} failed: {e}"
+                self.end_time = datetime.now()
 
             finally:
                 if p.returncode == 0 or self.progress == 1.0:
