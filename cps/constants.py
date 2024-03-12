@@ -48,6 +48,9 @@ CACHE_DIR           = os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
 # an initial metadata manifest (prior to downloading videos or media) here:
 XKLB_DB_FILE      = "/library/calibre-web/xklb-metadata.db"
 
+# Number of videos to be downloaded (default: 100) based on views per day
+NUMBER_OF_VIDEOS = 100
+
 if HOME_CONFIG:
     home_dir = os.path.join(os.path.expanduser("~"), ".calibre-web")
     if not os.path.exists(home_dir):
