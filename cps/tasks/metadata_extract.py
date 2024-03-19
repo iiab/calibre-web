@@ -29,7 +29,6 @@ class TaskMetadataExtract(CalibreTask):
         self.columns = None
         self.shelf_title = None
         self.shelf_id = None
-        self.playlist_id = None
         self.main_message = None
 
     def run(self, worker_thread):
@@ -53,7 +52,7 @@ class TaskMetadataExtract(CalibreTask):
                 p = process_open(subprocess_args, newlines=True)
                 p.wait()
                 self_main_message = f"{self.media_url_link}"
-                self.message = self_main_message
+                self.message = self_main_message + "..."
 
                 # Database operations
                 requested_urls = {}
@@ -94,32 +93,27 @@ class TaskMetadataExtract(CalibreTask):
                         self.message = f"{self.media_url_link} failed: {db_error}"
 
                     # get the shelf title
-                    if any([requested_urls[url]["is_playlist_video"] for url in requested_urls.keys()]):
-                        try:
-                            self.playlist_id = self.media_url.split("/")[-1]
-                            if "list=" in self.playlist_id:
-                                self.playlist_id = self.playlist_id.split("list=")[-1]
-                                self.shelf_title = conn.execute("SELECT title FROM playlists WHERE extractor_playlist_id = ?", (self.playlist_id,)).fetchone()[0]
-                            elif "@" in self.playlist_id:
-                                self.shelf_title = self.playlist_id.split("@")[-1]
-                            else:
-                                self.shelf_title = "Unnamed Bookshelf"
-                        except sqlite3.Error as db_error:
-                            if "no such table: playlists" in str(db_error):
-                                log.info("No playlists table found in the database")
-                                self.playlist_id = None
-                            else:
+                    if "list=" in self.media_url or "@" in self.media_url or any([requested_urls[url]["is_playlist_video"] for url in requested_urls.keys()]):
+                        url_part = self.media_url.split("/")[-1]
+                        if "list=" in url_part:
+                            url_part = url_part.split("list=")[-1]
+                            try:
+                                self.shelf_title = conn.execute("SELECT title FROM playlists WHERE extractor_playlist_id = ?", (url_part,)).fetchone()[0]
+                            except sqlite3.Error as db_error:
                                 log.error("An error occurred while trying to connect to the database: %s", db_error)
-                                self.message = f"{self.media_url_link} failed to download: {db_error}"
-                                self.progress = 0
-                        finally:
-                            log.info("Shelf title: %s", self.shelf_title)
-                            response = requests.get(self.original_url, params={"current_user_name": self.current_user_name, "shelf_title": self.shelf_title})
-                            if response.status_code == 200:
-                                self.shelf_id = response.json()["shelf_id"]
-                            else:
-                                log.error("An error occurred while trying to send the shelf title to %s", self.original_url)
+                        elif "@" in url_part:
+                            self.shelf_title = url_part.split("@")[-1]
+                        else:
+                            self.shelf_title = "Unnamed Bookshelf"
+                        response = requests.get(self.original_url, params={"current_user_name": self.current_user_name, "shelf_title": self.shelf_title})
+                        if response.status_code == 200:
+                            self.shelf_id = response.json()["shelf_id"]
+                        else:
+                            log.error("An error occurred while trying to send the shelf title to %s", self.original_url)
                             
+                        # remove shorts from the requested_urls dict
+                        requested_urls = {url: requested_urls[url] for url in requested_urls.keys() if "shorts" not in url}
+                        
                         # update the metadata of the videos in the playlist
                         for index, requested_url in enumerate(requested_urls.keys()):
                             try:
@@ -144,6 +138,7 @@ class TaskMetadataExtract(CalibreTask):
 
                         # sort the videos by views per day and get the top ones (up to the maximum number of videos per download or the length of the dictionary)
                         requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:min(MAX_VIDEOS_PER_DOWNLOAD, len(requested_urls))])
+                        log.debug("Videos sorted by views per day: \n%s", "\n".join([f"{index + 1}-{conn.execute('SELECT title FROM media WHERE path = ?', (requested_url,)).fetchone()[0]}:{requested_urls[requested_url]['views_per_day']}" for index, requested_url in enumerate(requested_urls.keys())]))
 
                 conn.close()
 
