@@ -139,6 +139,13 @@ class TaskMetadataExtract(CalibreTask):
                         # sort the videos by views per day and get the top ones (up to the maximum number of videos per download or the length of the dictionary)
                         requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:min(MAX_VIDEOS_PER_DOWNLOAD, len(requested_urls))])
                         log.debug("Videos sorted by views per day: \n%s", "\n".join([f"{index + 1}-{conn.execute('SELECT title FROM media WHERE path = ?', (requested_url,)).fetchone()[0]}:{requested_urls[requested_url]['views_per_day']}" for index, requested_url in enumerate(requested_urls.keys())]))
+                    else:
+                        try:
+                            extractor_id = conn.execute("SELECT extractor_id FROM media WHERE ? LIKE '%' || extractor_id || '%'", (self.media_url,)).fetchone()[0]
+                            requested_urls = {url: requested_urls[url] for url in requested_urls.keys() if extractor_id in url} # filter the requested_urls dict
+                        except sqlite3.Error as db_error:
+                            log.error("An error occurred while trying to connect to the database: %s", db_error)
+                            self.message = f"{self.media_url_link} failed to download: {db_error}"    
 
                 conn.close()
 
