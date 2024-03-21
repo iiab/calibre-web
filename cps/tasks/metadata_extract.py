@@ -61,11 +61,10 @@ class TaskMetadataExtract(CalibreTask):
                         cursor = conn.execute("PRAGMA table_info(media)")
                         self.columns = [column[1] for column in cursor.fetchall()]
                         if "error" in self.columns:
-                            rows = conn.execute("SELECT path, duration FROM media WHERE error IS NULL AND path LIKE 'http%'").fetchall()
+                            rows = conn.execute("SELECT path, duration, time_uploaded, view_count, size FROM media WHERE error IS NULL AND path LIKE 'http%'").fetchall()
                         else:
-                            rows = conn.execute("SELECT path, duration FROM media WHERE path LIKE 'http%'").fetchall()
+                            rows = conn.execute("SELECT path, duration, time_uploaded, view_count, size FROM media WHERE path LIKE 'http%'").fetchall()
 
-                        # Abort if there are no urls
                         if not rows:
                             log.info("No urls found in the database")
                             error = conn.execute("SELECT error, webpath FROM media WHERE error IS NOT NULL AND webpath = ?", (self.media_url,)).fetchone()
@@ -78,13 +77,27 @@ class TaskMetadataExtract(CalibreTask):
                         for row in rows:
                             path = row[0]
                             duration = row[1]
+                            time_uploaded = row[2]
+                            view_count = row[3]
+                            size = row[4]
+
+                            time_uploaded = datetime.utcfromtimestamp(time_uploaded)
+                            now = datetime.now()
+                            days_since_publish = (now - time_uploaded).days or 1
+                            views_per_day = view_count / days_since_publish
+
                             is_playlist_video = False
                             if "playlists_id" in self.columns:
                                 playlist_id = conn.execute("SELECT playlists_id FROM media WHERE path = ?", (path,)).fetchone()
                                 if playlist_id:
-                                    is_playlist_video = True
+                                    is_playlist_video = True 
+      
                             requested_urls[path] = {
                                 "duration": duration,
+                                "time_uploaded": time_uploaded,
+                                "view_count": view_count,
+                                "size": size,
+                                "views_per_day": views_per_day,
                                 "is_playlist_video": is_playlist_video
                             }
 
@@ -113,28 +126,6 @@ class TaskMetadataExtract(CalibreTask):
                             
                         # remove shorts from the requested_urls dict
                         requested_urls = {url: requested_urls[url] for url in requested_urls.keys() if "shorts" not in url}
-                        
-                        # update the metadata of the videos in the playlist
-                        for index, requested_url in enumerate(requested_urls.keys()):
-                            try:
-                                p = process_open([lb_executable, "tubeadd", requested_url], newlines=True)
-                                p.wait()
-                                self.progress = (index + 1) / len(requested_urls) - 0.01
-                            except Exception as e:
-                                log.error("An error occurred during updating the metadata of %s: %s", requested_url, e)
-                                self.message = f"{requested_url} failed: {e}"
-                        for requested_url in requested_urls.keys():
-                            try:
-                                view_count = conn.execute("SELECT view_count FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
-                                time_uploaded = conn.execute("SELECT time_uploaded FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
-                                time_uploaded = datetime.utcfromtimestamp(time_uploaded)
-                                now = datetime.now()
-                                # calculate views per day
-                                days_since_publish = (now - time_uploaded).days or 1
-                                requested_urls[requested_url]["views_per_day"] = view_count / days_since_publish
-                            except Exception as e:
-                                log.error("An error occurred during the subprocess execution: %s", e)
-                                self.message = f"{requested_url} failed: {e}"
 
                         # sort the videos by views per day and get the top ones (up to the maximum number of videos per download or the length of the dictionary)
                         requested_urls = dict(sorted(requested_urls.items(), key=lambda item: item[1]["views_per_day"], reverse=True)[:min(MAX_VIDEOS_PER_DOWNLOAD, len(requested_urls))])
@@ -161,9 +152,9 @@ class TaskMetadataExtract(CalibreTask):
 
                     if requested_urls[requested_url]["duration"] is not None:
                         total_duration += requested_urls[requested_url]["duration"]
-                    self.message = self_main_message + f"<br><br>Number of Videos: {index + 1}/{num_requested_urls}<br>Total Duration: {datetime.utcfromtimestamp(total_duration).strftime('%H:%M:%S')}" 
+                    self.message = self_main_message + f"<br><br>Number of Videos: {index + 1}/{num_requested_urls}<br>Total Duration: {datetime.utcfromtimestamp(total_duration).strftime('%H:%M:%S')}"
+                    self.progress = (index + 1) / num_requested_urls
 
-                self.progress = 1.0
                 self.end_time = datetime.now()
 
             except Exception as e:
