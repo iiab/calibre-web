@@ -78,8 +78,12 @@ class TaskDownload(CalibreTask):
                     else:
                         fragment_stuck_time += 0.1
                         if fragment_stuck_time >= fragment_stuck_timeout:
-                            log.error("Download appears to be stuck.")
-                            self.record_error_in_database("Download appears to be stuck.")
+                            with sqlite3.connect(XKLB_DB_FILE) as conn:
+                                requested_file = conn.execute("SELECT path FROM media WHERE webpath = ? AND path NOT LIKE 'http%'", (self.media_url,)).fetchone()[0]
+                                if requested_file:
+                                    os.remove(requested_file)
+                                    conn.execute("DELETE FROM media WHERE webpath = ?", (self.media_url,))
+                                    conn.commit()
                             raise ValueError("Download appears to be stuck.")
 
                     sleep(0.1)
