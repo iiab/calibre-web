@@ -960,11 +960,14 @@ class CalibreDB:
         
         # search also through the subtitles (for videos)
         other_terms = lb_search.get_search_terms(term)
+        # lb_search.get_search_terms returns a list of video titles, "term" parameter is expected to be a book/video title
         term = [term] + other_terms
 
         result = list()
         for term_part in term:
+            # the search_query function below only searches for books titles
             result += self.search_query(term_part, config, *join).order_by(*order).all()
+        # we need to remove duplicates because the same book/video could be found multiple times
         result = list(set(result))
         result_count = len(result)
         if offset != None and limit != None:
