@@ -81,7 +81,7 @@ class TaskDownload(CalibreTask):
                     else:
                         elapsed_time = (datetime.now() - last_progress_time).total_seconds()
                         if elapsed_time >= fragment_stuck_timeout:
-                            self.message = f"Unable to download {self.media_url_link} due to unavailable fragments. Please see https://github.com/yt-dlp/yt-dlp/issues/2137 for context. Try to download the video again later."
+                            self.message = f"Unable to download {self.media_url_link} due to unavailable fragments. Please see <a href='https://github.com/yt-dlp/yt-dlp/issues/2137' target='_blank'>this ticket</a> for context. Try to download the video again later."
 
                     sleep(0.1)
 
