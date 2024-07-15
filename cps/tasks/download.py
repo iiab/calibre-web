@@ -81,7 +81,7 @@ class TaskDownload(CalibreTask):
                     else:
                         elapsed_time = (datetime.now() - last_progress_time).total_seconds()
                         if elapsed_time >= fragment_stuck_timeout:
-                            self.message += f"<br>Some fragments are taking longer than expected to download. Please wait..."
+                            self.message = f"Unable to download {self.media_url_link} due to unavailable fragments."
 
                     sleep(0.1)
 
