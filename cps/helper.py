@@ -34,7 +34,7 @@ from flask import send_from_directory, make_response, abort, url_for, Response
 from flask_babel import gettext as _
 from flask_babel import lazy_gettext as N_
 from flask_babel import get_locale
-from flask_login import current_user
+from .cw_login import current_user
 from sqlalchemy.sql.expression import true, false, and_, or_, text, func
 from sqlalchemy.exc import InvalidRequestError, OperationalError
 from werkzeug.datastructures import Headers
@@ -117,9 +117,11 @@ def convert_book_format(book_id, calibre_path, old_book_format, new_book_format,
 
 # Texts are not lazy translated as they are supposed to get send out as is
 def send_test_mail(ereader_mail, user_name):
-    WorkerThread.add(user_name, TaskEmail(_('Calibre-Web Test Email'), None, None,
-                     config.get_mail_settings(), ereader_mail, N_("Test Email"),
-                                          _('This Email has been sent via Calibre-Web.')))
+    for email in ereader_mail.split(','):
+        email = email.strip()
+        WorkerThread.add(user_name, TaskEmail(_('Calibre-Web Test Email'), None, None,
+                         config.get_mail_settings(), email, N_("Test Email"),
+                                              _('This Email has been sent via Calibre-Web.')))
     return
 
 
@@ -225,9 +227,11 @@ def send_mail(book_id, book_format, convert, ereader_mail, calibrepath, user_id)
             converted_file_name = entry.name + '.' + book_format.lower()
             link = '<a href="{}">{}</a>'.format(url_for('web.show_book', book_id=book_id), escape(book.title))
             email_text = N_("%(book)s send to eReader", book=link)
-            WorkerThread.add(user_id, TaskEmail(_("Send to eReader"), book.path, converted_file_name,
-                             config.get_mail_settings(), ereader_mail,
-                             email_text, _('This Email has been sent via Calibre-Web.'), book.id))
+            for email in ereader_mail.split(','):
+                email = email.strip()
+                WorkerThread.add(user_id, TaskEmail(_("Send to eReader"), book.path, converted_file_name,
+                                 config.get_mail_settings(), email,
+                                 email_text, _('This Email has been sent via Calibre-Web.'), book.id))
             return
     return _("The requested file could not be read. Maybe wrong permissions?")
 
@@ -558,7 +562,7 @@ def move_files_on_change(calibre_path, new_author_dir, new_titledir, localbook, 
             if not os.path.isdir(new_path):
                 os.makedirs(new_path)
             shutil.move(original_filepath, os.path.join(new_path, db_filename))
-            log.debug("Moving title: %s to %s/%s", original_filepath, new_path)
+            log.debug("Moving title: %s to %s", original_filepath, new_path)
         else:
             # Check new path is not valid path
             if not os.path.exists(new_path):
@@ -691,15 +695,16 @@ def check_username(username):
     return username
 
 
-def valid_email(email):
-    email = email.strip()
-    # if email is not deleted
-    if email:
-        # Regex according to https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#validation
-        if not re.search(r"^[\w.!#$%&'*+\\/=?^_`{|}~-]+@[\w](?:[\w-]{0,61}[\w])?(?:\.[\w](?:[\w-]{0,61}[\w])?)*$",
-                         email):
-            log.error("Invalid Email address format")
-            raise Exception(_("Invalid Email address format"))
+def valid_email(emails):
+    for email in emails.split(','):
+	    email = email.strip()
+	    # if email is not deleted
+	    if email:
+	        # Regex according to https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/email#validation
+	        if not re.search(r"^[\w.!#$%&'*+\\/=?^_`{|}~-]+@[\w](?:[\w-]{0,61}[\w])?(?:\.[\w](?:[\w-]{0,61}[\w])?)*$",
+	                         email):
+	            log.error("Invalid Email address format")
+	            raise Exception(_("Invalid Email address format"))
     return email
 
 

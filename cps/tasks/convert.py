@@ -105,17 +105,19 @@ class TaskConvert(CalibreTask):
                 # if we're sending to E-Reader after converting, create a one-off task and run it immediately
                 # todo: figure out how to incorporate this into the progress
                 try:
-                    EmailText = N_("%(book)s send to E-Reader", book=escape(self.title))
-                    worker_thread.add(self.user, TaskEmail(self.settings['subject'],
-                                                           self.results["path"],
-                                                           filename,
-                                                           self.settings,
-                                                           self.ereader_mail,
-                                                           EmailText,
-                                                           self.settings['body'],
-                                                           id=self.book_id,
-                                                           internal=True)
-                                      )
+                    EmailText = N_(u"%(book)s send to E-Reader", book=escape(self.title))                    
+                    for email in self.ereader_mail.split(','):
+                        email = email.strip()
+                        worker_thread.add(self.user, TaskEmail(self.settings['subject'],
+                                                               self.results["path"],
+                                                               filename,
+                                                               self.settings,
+                                                               email,
+                                                               EmailText,
+                                                               self.settings['body'],
+                                                               id=self.book_id,
+                                                               internal=True)
+                                          )
                 except Exception as ex:
                     return self._handleError(str(ex))
 
@@ -253,7 +255,7 @@ class TaskConvert(CalibreTask):
         try:
             # path_tmp_opf = self._embed_metadata()
             if config.config_embed_metadata:
-                quotes = [3, 5]
+                quotes = [5]
                 tmp_dir = get_temp_dir()
                 calibredb_binarypath = os.path.join(config.config_binariesdir, SUPPORTED_CALIBRE_BINARIES["calibredb"])
                 my_env = os.environ.copy()
@@ -267,10 +269,18 @@ class TaskConvert(CalibreTask):
                                '--with-library', library_path]
                 p = process_open(opf_command, quotes, my_env)
                 p.wait()
-                path_tmp_opf = os.path.join(tmp_dir, "metadata_" + str(uuid4()) + ".opf")
-                with open(path_tmp_opf, 'w') as fd:
-                    copyfileobj(p.stdout, fd)
-
+                check = p.returncode
+                calibre_traceback = p.stderr.readlines()
+                if check == 0:
+                    path_tmp_opf = os.path.join(tmp_dir, "metadata_" + str(uuid4()) + ".opf")
+                    with open(path_tmp_opf, 'w') as fd:
+                        copyfileobj(p.stdout, fd)
+                else:
+                    error_message = ""
+                    for ele in calibre_traceback:
+                        if not ele.startswith('Traceback') and not ele.startswith('  File'):
+                            error_message = N_("Calibre failed with error: %(error)s", error=ele)
+                    return check, error_message
             quotes = [1, 2, 4, 6]
             command = [config.config_converterpath, (file_path + format_old_ext),
                        (file_path + format_new_ext)]
