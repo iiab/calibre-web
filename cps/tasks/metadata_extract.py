@@ -63,10 +63,12 @@ class TaskMetadataExtract(CalibreTask):
         try:
             cursor = conn.execute("PRAGMA table_info(media)")
             self.columns = [column[1] for column in cursor.fetchall()]
-            query = ("SELECT path, duration, live_status FROM media WHERE error IS NULL AND path LIKE 'http%' AND time_created > ?"
-                     if "error" in self.columns
-                     else "SELECT path, duration, live_status FROM media WHERE path LIKE 'http%' AND time_created > ?")
-            rows = conn.execute(query, (int(self.start_time.timestamp()),)).fetchall()
+            if "live_status" not in self.columns:
+                conn.execute("ALTER TABLE media ADD COLUMN live_status TEXT")
+            if "error" not in self.columns:
+                conn.execute("ALTER TABLE media ADD COLUMN error TEXT")
+            query = "SELECT path, duration, live_status FROM media WHERE path LIKE 'http%' AND (error IS NULL OR error = '')"
+            rows = conn.execute(query).fetchall()
             requested_urls = {}
             for path, duration, live_status in rows:
                 if duration is not None and duration > 0:
@@ -196,6 +198,7 @@ class TaskMetadataExtract(CalibreTask):
             self._add_download_tasks_to_worker(requested_urls)
         conn.close()
 
+        self.progress = 1.0
         self.stat = STAT_FINISH_SUCCESS
 
     @property

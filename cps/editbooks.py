@@ -32,7 +32,7 @@ from flask import Blueprint, request, flash, redirect, url_for, abort, Response,
 from flask_babel import gettext as _
 from flask_babel import lazy_gettext as N_
 from flask_babel import get_locale
-from flask_login import current_user, login_required
+from .cw_login import current_user, login_required
 from sqlalchemy.exc import OperationalError, IntegrityError, InterfaceError
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import func
@@ -44,10 +44,11 @@ from .services.worker import WorkerThread
 from .tasks.upload import TaskUpload
 from .tasks.metadata_extract import TaskMetadataExtract
 from .render_template import render_title_template
-from .usermanagement import login_required_if_no_ano
 from .kobo_sync_status import change_archived_books
 from .redirect import get_redirect_location
 from .file_helper import validate_mime_type
+from .usermanagement import user_login_required, login_required_if_no_ano
+
 
 editbook = Blueprint('edit-book', __name__)
 log = logger.create()
@@ -74,14 +75,14 @@ def edit_required(f):
 
 
 @editbook.route("/ajax/delete/<int:book_id>", methods=["POST"])
-@login_required
+@user_login_required
 def delete_book_from_details(book_id):
     return Response(delete_book_from_table(book_id, "", True), mimetype='application/json')
 
 
 @editbook.route("/delete/<int:book_id>", defaults={'book_format': ""}, methods=["POST"])
 @editbook.route("/delete/<int:book_id>/<string:book_format>", methods=["POST"])
-@login_required
+@user_login_required
 def delete_book_ajax(book_id, book_format):
     return delete_book_from_table(book_id, book_format, False, request.form.to_dict().get('location', ""))
 
@@ -134,8 +135,9 @@ def edit_book(book_id):
         # handle upload other formats from local disk
         meta = upload_single_file(request, book, book_id)
         # only merge metadata if file was uploaded and no error occurred (meta equals not false or none)
+        upload_format = False
         if meta:
-            merge_metadata(to_save, meta)
+            upload_format = merge_metadata(to_save, meta)
         # handle upload covers from local disk
         cover_upload_success = upload_cover(request, book)
         if cover_upload_success:
@@ -179,7 +181,7 @@ def edit_book(book_id):
         modify_date |= edit_book_publisher(to_save['publisher'], book)
         # handle book languages
         try:
-            modify_date |= edit_book_languages(to_save['languages'], book)
+            modify_date |= edit_book_languages(to_save['languages'], book, upload_format)
         except ValueError as e:
             flash(str(e), category="error")
             edit_error = True
@@ -490,7 +492,7 @@ def convert_bookformat(book_id):
 
 
 @editbook.route("/ajax/getcustomenum/<int:c_id>")
-@login_required
+@user_login_required
 def table_get_custom_enum(c_id):
     ret = list()
     cc = (calibre_db.session.query(db.CustomColumns)
@@ -614,7 +616,7 @@ def edit_list_book(param):
 
 
 @editbook.route("/ajax/sort_value/<field>/<int:bookid>")
-@login_required
+@user_login_required
 def get_sorted_entry(field, bookid):
     if field in ['title', 'authors', 'sort', 'author_sort']:
         book = calibre_db.get_filtered_book(bookid)
@@ -631,7 +633,7 @@ def get_sorted_entry(field, bookid):
 
 
 @editbook.route("/ajax/simulatemerge", methods=['POST'])
-@login_required
+@user_login_required
 @edit_required
 def simulate_merge_list_book():
     vals = request.get_json().get('Merge_books')
@@ -647,7 +649,7 @@ def simulate_merge_list_book():
 
 
 @editbook.route("/ajax/mergebooks", methods=['POST'])
-@login_required
+@user_login_required
 @edit_required
 def merge_list_book():
     vals = request.get_json().get('Merge_books')
@@ -685,7 +687,7 @@ def merge_list_book():
 
 
 @editbook.route("/ajax/xchange", methods=['POST'])
-@login_required
+@user_login_required
 @edit_required
 def table_xchange_author_title():
     vals = request.get_json().get('xchange')
@@ -733,6 +735,10 @@ def merge_metadata(to_save, meta):
         to_save['author_name'] = ''
     if to_save.get('book_title', "") == _('Unknown'):
         to_save['book_title'] = ''
+    if not to_save["languages"] and meta.languages:
+        upload_language = True
+    else:
+        upload_language = False
     for s_field, m_field in [
             ('tags', 'tags'), ('author_name', 'author'), ('series', 'series'),
             ('series_index', 'series_id'), ('languages', 'languages'),
@@ -740,7 +746,7 @@ def merge_metadata(to_save, meta):
         to_save[s_field] = to_save[s_field] or getattr(meta, m_field, '')
     to_save["description"] = to_save["description"] or Markup(
         getattr(meta, 'description', '')).unescape()
-
+    return upload_language
 
 def identifier_list(to_save, book):
     """Generate a list of Identifiers from form information"""
@@ -1447,7 +1453,6 @@ def handle_author_on_edit(book, author_name, update_stored=True):
     # handle author(s)
     input_authors = prepare_authors(author_name, config.get_book_path(), config.config_use_google_drive)
 
-    # change |= modify_database_object(input_authors, book.authors, db.Authors, calibre_db.session, 'author')
     # Search for each author if author is in database, if not, author name and sorted author name is generated new
     # everything then is assembled for sorted author field in database
     sort_authors_list = list()
@@ -1527,11 +1532,9 @@ def add_objects(db_book_object, db_object, db_session, db_type, add_elements):
     for add_element in add_elements:
         # check if an element with that name exists
         changed = True
-        # db_session.query(db.Tags).filter((func.lower(db.Tags.name).ilike("GênOt"))).all()
-        db_element = db_session.query(db_object).filter((func.lower(db_filter).ilike(add_element))).first()
-        # db_element = db_session.query(db_object).filter(func.lower(db_filter) == add_element.lower()).first()
+        db_element = db_session.query(db_object).filter((func.lower(db_filter).ilike(add_element))).all()
         # if no element is found add it
-        if db_element is None:
+        if not db_element:
             if db_type == 'author':
                 new_element = db_object(add_element, helper.get_sorted_author(add_element.replace('|', ',')))
             elif db_type == 'series':
@@ -1545,12 +1548,11 @@ def add_objects(db_book_object, db_object, db_session, db_type, add_elements):
             db_session.add(new_element)
             db_book_object.append(new_element)
         else:
-            db_no_case = db_session.query(db_object).filter(db_filter == add_element).first()
-            if db_no_case:
-                # check for new case of element
-                db_element = create_objects_for_addition(db_element, add_element, db_type)
-            #else:
-            #    db_element = create_objects_for_addition(db_element, add_element, db_type)
+            if len(db_element) == 1:
+                db_element = create_objects_for_addition(db_element[0], add_element, db_type)
+            else:
+                db_el = db_session.query(db_object).filter(db_filter == add_element).first()
+                db_element = db_element[0] if not db_el else db_el
             # add element to book
             db_book_object.append(db_element)
 

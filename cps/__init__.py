@@ -70,8 +70,8 @@ mimetypes.add_type('image/vnd.djv', '.djv')
 mimetypes.add_type('image/vnd.djv', '.djvu')
 mimetypes.add_type('application/mpeg', '.mpeg')
 mimetypes.add_type('audio/mpeg', '.mp3')
-mimetypes.add_type('application/mp4', '.m4a')
-mimetypes.add_type('application/mp4', '.m4b')
+mimetypes.add_type('audio/x-m4a', '.m4a')
+mimetypes.add_type('audio/x-m4a', '.m4b')
 mimetypes.add_type('audio/ogg', '.ogg')
 mimetypes.add_type('application/ogg', '.oga')
 mimetypes.add_type('text/css', '.css')
@@ -83,8 +83,8 @@ log = logger.create()
 app = Flask(__name__)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
-    SESSION_COOKIE_SAMESITE='Lax',
-    REMEMBER_COOKIE_SAMESITE='Lax',  # will be available in flask-login 0.5.1 earliest
+    SESSION_COOKIE_SAMESITE='Strict',
+    REMEMBER_COOKIE_SAMESITE='Strict',  # will be available in flask-login 0.5.1 earliest
     WTF_CSRF_SSL_STRICT=False
 )
 
