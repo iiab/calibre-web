@@ -21,7 +21,7 @@
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 from shutil import copyfile, move
 from uuid import uuid4
@@ -201,7 +201,7 @@ def edit_book(book_id):
             book.pubdate = db.Books.DEFAULT_PUBDATE
 
         if modify_date:
-            book.last_modified = datetime.utcnow()
+            book.last_modified = datetime.now(timezone.utc)
             kobo_sync_status.remove_synced_book(edited_books_id, all=True)
             calibre_db.set_metadata_dirty(book.id)
 
@@ -247,8 +247,12 @@ def upload():
                 modify_date = False
                 # create the function for sorting...
                 calibre_db.update_title_sort(config)
-                calibre_db.session.connection().connection.connection.create_function('uuid4', 0, lambda: str(uuid4()))
-
+                try:
+                    # sqlalchemy 2.0
+                    uuid_func = calibre_db.session.connection().connection.driver_connection
+                except AttributeError:
+                    uuid_func = calibre_db.session.connection().connection.connection
+                uuid_func.create_function('uuid4', 0,lambda: str(uuid4()))
                 meta, error = file_handling_on_upload(requested_file)
                 if error:
                     return error
@@ -599,7 +603,7 @@ def edit_list_book(param):
                                mimetype='application/json')
         else:
             return _("Parameter not found"), 400
-        book.last_modified = datetime.utcnow()
+        book.last_modified = datetime.now(timezone.utc)
 
         calibre_db.session.commit()
         # revert change for sort if automatic fields link is deactivated
@@ -715,7 +719,7 @@ def table_xchange_author_title():
                 # toDo: Handle error
                 edit_error = helper.update_dir_structure(edited_books_id, config.get_book_path(), input_authors[0])
             if modify_date:
-                book.last_modified = datetime.utcnow()
+                book.last_modified = datetime.now(timezone.utc)
                 calibre_db.set_metadata_dirty(book.id)
             try:
                 calibre_db.session.commit()
@@ -866,8 +870,8 @@ def create_book_on_upload(modify_date, meta):
         pubdate = datetime(101, 1, 1)
 
     # Calibre adds books with utc as timezone
-    db_book = db.Books(title, "", sort_authors, datetime.utcnow(), pubdate,
-                       '1', datetime.utcnow(), path, meta.cover, db_author, [], "")
+    db_book = db.Books(title, "", sort_authors, datetime.now(timezone.utc), pubdate,
+                       '1', datetime.now(timezone.utc), path, meta.cover, db_author, [], "")
 
     modify_date |= modify_database_object(input_authors, db_book.authors, db.Authors, calibre_db.session,
                                           'author')
@@ -1175,7 +1179,7 @@ def edit_book_series_index(series_index, book):
     modify_date = False
     series_index = series_index or '1'
     if not series_index.replace('.', '', 1).isdigit():
-        flash(_("%(seriesindex)s is not a valid number, skipping", seriesindex=series_index), category="warning")
+        flash(_("Seriesindex: %(seriesindex)s is not a valid number, skipping", seriesindex=series_index), category="warning")
         return False
     if str(book.series_index) != series_index:
         book.series_index = series_index
