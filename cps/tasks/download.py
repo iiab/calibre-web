@@ -81,7 +81,7 @@ class TaskDownload(CalibreTask):
                     else:
                         elapsed_time = (datetime.now() - last_progress_time).total_seconds()
                         if elapsed_time >= timeout:
-                            self.message = f"{self.media_url_link} is taking longer than expected. It could be a stuck download due to unavailable fragments <a href='https://github.com/yt-dlp/yt-dlp/issues/2137' target='_blank'>yt-dlp/yt-dlp#2137</a> and/or an error in xklb's media check. Please wait as we try again. See <a href='https://github.com/iiab/calibre-web/pull/223' target='_blank'>#223</a> for more info.
+                            self.message = f"{self.media_url_link} is taking longer than expected. It could be a stuck download due to unavailable fragments <a href='https://github.com/yt-dlp/yt-dlp/issues/2137' target='_blank'>yt-dlp/yt-dlp#2137</a> and/or an error in xklb's media check. Please wait as we try again. See <a href='https://github.com/iiab/calibre-web/pull/223' target='_blank'>#223</a> for more info."
                     sleep(0.1)
 
                 p.wait()
