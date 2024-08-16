@@ -21,7 +21,7 @@
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 
 from flask import Blueprint, flash, redirect, request, url_for, abort
 from flask_babel import gettext as _
@@ -80,7 +80,7 @@ def add_to_shelf(shelf_id, book_id):
         return "%s is a invalid Book Id. Could not be added to Shelf" % book_id, 400
 
     shelf.books.append(ub.BookShelf(shelf=shelf.id, book_id=book_id, order=maxOrder + 1))
-    shelf.last_modified = datetime.utcnow()
+    shelf.last_modified = datetime.now(timezone.utc)
     try:
         ub.session.merge(shelf)
         ub.session.commit()
@@ -139,7 +139,7 @@ def search_to_shelf(shelf_id):
         for book in books_for_shelf:
             maxOrder += 1
             shelf.books.append(ub.BookShelf(shelf=shelf.id, book_id=book, order=maxOrder))
-        shelf.last_modified = datetime.utcnow()
+        shelf.last_modified = datetime.now(timezone.utc)
         try:
             ub.session.merge(shelf)
             ub.session.commit()
@@ -185,7 +185,7 @@ def remove_from_shelf(shelf_id, book_id):
 
         try:
             ub.session.delete(book_shelf)
-            shelf.last_modified = datetime.utcnow()
+            shelf.last_modified = datetime.now(timezone.utc)
             ub.session.commit()
         except (OperationalError, InvalidRequestError) as e:
             ub.session.rollback()
@@ -271,7 +271,7 @@ def order_shelf(shelf_id):
             for book in books_in_shelf:
                 setattr(book, 'order', to_save[str(book.book_id)])
                 counter += 1
-                # if order different from before -> shelf.last_modified = datetime.utcnow()
+                # if order different from before -> shelf.last_modified = datetime.now(timezone.utc)
             try:
                 ub.session.commit()
             except (OperationalError, InvalidRequestError) as e:
@@ -449,11 +449,14 @@ def render_show_shelf(shelf_type, shelf_id, page_no, sort_param):
     # check user is allowed to access shelf
     if shelf and check_shelf_view_permissions(shelf):
         if shelf_type == 1:
-            # order = [ub.BookShelf.order.asc()]
             if sort_param == 'pubnew':
                 change_shelf_order(shelf_id, [db.Books.pubdate.desc()])
             if sort_param == 'pubold':
                 change_shelf_order(shelf_id, [db.Books.pubdate])
+            if sort_param == 'shelfnew':
+                change_shelf_order(shelf_id, [ub.BookShelf.date_added.desc()])
+            if sort_param == 'shelfold':
+                change_shelf_order(shelf_id, [ub.BookShelf.date_added])
             if sort_param == 'abc':
                 change_shelf_order(shelf_id, [db.Books.sort])
             if sort_param == 'zyx':
@@ -480,7 +483,7 @@ def render_show_shelf(shelf_type, shelf_id, page_no, sort_param):
                                                            [ub.BookShelf.order.asc()],
                                                            True, config.config_read_column,
                                                            ub.BookShelf, ub.BookShelf.book_id == db.Books.id)
-        # delete chelf entries where book is not existent anymore, can happen if book is deleted outside calibre-web
+        # delete shelf entries where book is not existent anymore, can happen if book is deleted outside calibre-web
         wrong_entries = calibre_db.session.query(ub.BookShelf) \
             .join(db.Books, ub.BookShelf.book_id == db.Books.id, isouter=True) \
             .filter(db.Books.id == None).all()

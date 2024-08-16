@@ -29,7 +29,8 @@ from flask_babel import gettext as _
 from . import logger, comic, isoLanguages
 from .constants import BookMeta, XKLB_DB_FILE
 from .helper import split_authors
-from .file_helper import get_temp_dir, validate_mime_type
+from .file_helper import get_temp_dir
+from .string_helper import strip_whitespaces
 
 log = logger.create()
 
@@ -74,6 +75,13 @@ except ImportError as e:
     log.debug('Cannot import fb2, extracting fb2 metadata will not work: %s', e)
     use_fb2_meta = False
 
+try:
+    from . import audio
+    use_audio_meta = True
+except ImportError as e:
+    log.debug('Cannot import mutagen, extracting audio metadata will not work: %s', e)
+    use_audio_meta = False
+
 
 def process(tmp_file_path, original_file_name, original_file_extension, rar_executable):
     meta = default_meta(tmp_file_path, original_file_name, original_file_extension)
@@ -96,12 +104,15 @@ def process(tmp_file_path, original_file_name, original_file_extension, rar_exec
             shutil.copyfile(tmp_file_path, os.path.splitext(tmp_file_path)[0] + '.cover.jpg')
             meta = image_metadata(tmp_file_path, original_file_name, original_file_extension)
 
+        elif extension_upper in [".MP3", ".OGG", ".FLAC", ".WAV", ".AAC", ".AIFF", ".ASF", ".MP4",
+                                 ".M4A", ".M4B", ".OGV", ".OPUS"] and use_audio_meta:
+            meta = audio.get_audio_file_info(tmp_file_path, original_file_extension, original_file_name)
     except Exception as ex:
         log.warning('cannot parse metadata, using default: %s', ex)
 
-    if not meta.title.strip():
+    if not strip_whitespaces(meta.title):
         meta = meta._replace(title=original_file_name)
-    if not meta.author.strip() or meta.author.lower() == 'unknown':
+    if not strip_whitespaces(meta.author) or meta.author.lower() == 'unknown':
         meta = meta._replace(author=_('Unknown'))
     return meta
 

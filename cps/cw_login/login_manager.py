@@ -1,4 +1,5 @@
 from datetime import datetime
+from datetime import timezone
 from datetime import timedelta
 import hashlib
 
@@ -397,7 +398,7 @@ class LoginManager:
 
     def _load_user_from_remember_cookie(self, cookie):
         signer_kwargs = dict(
-            key_derivation="hmac", digest_method=staticmethod(hashlib.sha1)
+            key_derivation="hmac", digest_method=hashlib.sha1
         )
         try:
             remember_dict = URLSafeSerializer(
@@ -482,7 +483,7 @@ class LoginManager:
         # prepare data
         max_age = int(current_app.permanent_session_lifetime.total_seconds())
         signer_kwargs = dict(
-            key_derivation="hmac", digest_method=staticmethod(hashlib.sha1)
+            key_derivation="hmac", digest_method=hashlib.sha1
         )
         # save
         data = URLSafeSerializer(
@@ -496,7 +497,7 @@ class LoginManager:
             duration = timedelta(seconds=duration)
 
         try:
-            expires = datetime.utcnow() + duration
+            expires = datetime.now(timezone.utc) + duration
         except TypeError as e:
             raise Exception(
                 "REMEMBER_COOKIE_DURATION must be a datetime.timedelta,"
