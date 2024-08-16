@@ -54,7 +54,7 @@ class TaskDownload(CalibreTask):
                 complete_progress_cycle = 0
 
                 last_progress_time = datetime.now()
-                fragment_stuck_timeout = 120  # seconds
+                timeout = 120  # seconds
 
                 self.message = f"Downloading {self.media_url_link}..."
                 if self.live_status == "was_live":
@@ -80,7 +80,7 @@ class TaskDownload(CalibreTask):
                                     last_progress_time = datetime.now()
                     else:
                         elapsed_time = (datetime.now() - last_progress_time).total_seconds()
-                        if elapsed_time >= fragment_stuck_timeout:
+                        if elapsed_time >= timeout:
                             self.message = f"{self.media_url_link} is stuck due to unavailable fragments. See <a href='https://github.com/yt-dlp/yt-dlp/issues/2137' target='_blank'>yt-dlp/yt-dlp#2137</a> for context."
                     sleep(0.1)
 
