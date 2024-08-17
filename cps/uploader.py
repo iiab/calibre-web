@@ -103,8 +103,7 @@ def process(tmp_file_path, original_file_name, original_file_extension, rar_exec
         elif extension_upper in ['.JPG', '.JPEG', '.PNG', '.GIF', '.SVG', '.WEBP']:
             shutil.copyfile(tmp_file_path, os.path.splitext(tmp_file_path)[0] + '.cover.jpg')
             meta = image_metadata(tmp_file_path, original_file_name, original_file_extension)
-
-        elif extension_upper in [".MP3", ".OGG", ".FLAC", ".WAV", ".AAC", ".AIFF", ".ASF", ".MP4",
+        elif extension_upper in [".MP3", ".OGG", ".FLAC", ".WAV", ".AAC", ".AIFF", ".ASF",
                                  ".M4A", ".M4B", ".OGV", ".OPUS"] and use_audio_meta:
             meta = audio.get_audio_file_info(tmp_file_path, original_file_extension, original_file_name)
     except Exception as ex:
