@@ -242,7 +242,7 @@ def meta():
         log.info("Processing file: {}".format(requested_file))
         try:
             modify_date = False
-            calibre_db.update_title_sort(config)
+            calibre_db.create_functions(config)
             calibre_db.session.connection().connection.connection.create_function(
                 "uuid4", 0, lambda: str(uuid4())
             )
