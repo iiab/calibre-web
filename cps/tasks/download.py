@@ -54,7 +54,7 @@ class TaskDownload(CalibreTask):
                 complete_progress_cycle = 0
 
                 last_progress_time = datetime.now(timezone.utc)
-                fragment_stuck_timeout = 120  # seconds
+                timeout = 120  # seconds
 
                 self.message = f"Downloading {self.media_url_link}..."
                 if self.live_status == "was_live":
@@ -80,9 +80,8 @@ class TaskDownload(CalibreTask):
                                     last_progress_time = datetime.now(timezone.utc)
                     else:
                         elapsed_time = (datetime.now(timezone.utc) - last_progress_time).total_seconds()
-                        if elapsed_time >= fragment_stuck_timeout:
-                            self.message += f"<br>Some fragments are taking longer than expected to download. Please wait..."
-
+                        if elapsed_time >= timeout:
+                            self.message = f"{self.media_url_link} is taking longer than expected. It could be a stuck download due to unavailable fragments (<a href='https://github.com/yt-dlp/yt-dlp/issues/2137' target='_blank'>yt-dlp/yt-dlp#2137</a>) and/or an error in xklb's media_check. Please wait as we keep trying. See <a href='https://github.com/iiab/calibre-web/pull/223' target='_blank'>#223</a> for more info."
                     sleep(0.1)
 
                 p.wait()
