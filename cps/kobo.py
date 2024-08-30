@@ -18,7 +18,7 @@
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 import base64
-import datetime
+from datetime import datetime, timezone
 import os
 import uuid
 import zipfile
@@ -36,7 +36,7 @@ from flask import (
     redirect,
     abort
 )
-from flask_login import current_user
+from .cw_login import current_user
 from werkzeug.datastructures import Headers
 from sqlalchemy import func
 from sqlalchemy.sql.expression import and_, or_
@@ -44,11 +44,10 @@ from sqlalchemy.exc import StatementError
 from sqlalchemy.sql import select
 import requests
 
-
 from . import config, logger, kobo_auth, db, calibre_db, helper, shelf as shelf_lib, ub, csrf, kobo_sync_status
 from . import isoLanguages
 from .epub import get_epub_layout
-from .constants import COVER_THUMBNAIL_SMALL #, sqlalchemy_version2
+from .constants import COVER_THUMBNAIL_SMALL, COVER_THUMBNAIL_MEDIUM, COVER_THUMBNAIL_LARGE
 from .helper import get_download_link
 from .services import SyncToken as SyncToken
 from .web import download_required
@@ -132,7 +131,7 @@ def convert_to_kobo_timestamp_string(timestamp):
         return timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
     except AttributeError as exc:
         log.debug("Timestamp not valid: {}".format(exc))
-        return datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @kobo.route("/v1/library/sync")
@@ -145,21 +144,21 @@ def HandleSyncRequest():
     sync_token = SyncToken.SyncToken.from_headers(request.headers)
     log.info("Kobo library sync request received")
     log.debug("SyncToken: {}".format(sync_token))
-    log.debug("Download link format {}".format(get_download_url_for_book('[bookid]','[bookformat]')))
+    log.debug("Download link format {}".format(get_download_url_for_book('[bookid]', '[bookformat]')))
     if not current_app.wsgi_app.is_proxied:
         log.debug('Kobo: Received unproxied request, changed request port to external server port')
 
     # if no books synced don't respect sync_token
     if not ub.session.query(ub.KoboSyncedBooks).filter(ub.KoboSyncedBooks.user_id == current_user.id).count():
-        sync_token.books_last_modified = datetime.datetime.min
-        sync_token.books_last_created = datetime.datetime.min
-        sync_token.reading_state_last_modified = datetime.datetime.min
+        sync_token.books_last_modified = datetime.min
+        sync_token.books_last_created = datetime.min
+        sync_token.reading_state_last_modified = datetime.min
 
     new_books_last_modified = sync_token.books_last_modified  # needed for sync selected shelfs only
     new_books_last_created = sync_token.books_last_created  # needed to distinguish between new and changed entitlement
     new_reading_state_last_modified = sync_token.reading_state_last_modified
 
-    new_archived_last_modified = datetime.datetime.min
+    new_archived_last_modified = datetime.min
     sync_results = []
 
     # We reload the book database so that the user gets a fresh view of the library
@@ -212,7 +211,7 @@ def HandleSyncRequest():
 
         kobo_reading_state = get_or_create_reading_state(book.Books.id)
         entitlement = {
-            "BookEntitlement": create_book_entitlement(book.Books, archived=(book.is_archived == True)),
+            "BookEntitlement": create_book_entitlement(book.Books, archived=(book.is_archived==True)),
             "BookMetadata": get_metadata(book.Books),
         }
 
@@ -376,7 +375,7 @@ def create_book_entitlement(book, archived):
     book_uuid = str(book.uuid)
     return {
         "Accessibility": "Full",
-        "ActivePeriod": {"From": convert_to_kobo_timestamp_string(datetime.datetime.utcnow())},
+        "ActivePeriod": {"From": convert_to_kobo_timestamp_string(datetime.now(timezone.utc))},
         "Created": convert_to_kobo_timestamp_string(book.timestamp),
         "CrossRevisionId": book_uuid,
         "Id": book_uuid,
@@ -796,7 +795,7 @@ def HandleStateRequest(book_uuid):
                 if new_book_read_status == ub.ReadBook.STATUS_IN_PROGRESS \
                         and new_book_read_status != book_read.read_status:
                     book_read.times_started_reading += 1
-                    book_read.last_time_started_reading = datetime.datetime.utcnow()
+                    book_read.last_time_started_reading = datetime.now(timezone.utc)
                 book_read.read_status = new_book_read_status
                 update_results_response["StatusInfoResult"] = {"Result": "Success"}
         except (KeyError, TypeError, ValueError, StatementError):
@@ -904,7 +903,12 @@ def get_current_bookmark_response(current_bookmark):
 @requires_kobo_auth
 def HandleCoverImageRequest(book_uuid, width, height, Quality, isGreyscale):
     try:
-        resolution = None if int(height) > 1000 else COVER_THUMBNAIL_SMALL
+        if int(height) > 1000:
+            resolution = COVER_THUMBNAIL_LARGE
+        elif int(height) > 500:
+            resolution = COVER_THUMBNAIL_MEDIUM
+        else:
+            resolution = COVER_THUMBNAIL_SMALL
     except ValueError:
         log.error("Requested height %s of book %s is invalid" % (book_uuid, height))
         resolution = COVER_THUMBNAIL_SMALL
@@ -921,8 +925,8 @@ def HandleCoverImageRequest(book_uuid, width, height, Quality, isGreyscale):
     log.debug("Redirecting request for cover image of unknown book %s to Kobo" % book_uuid)
     return redirect(KOBO_IMAGEHOST_URL +
                     "/{book_uuid}/{width}/{height}/false/image.jpg".format(book_uuid=book_uuid,
-                                                                            width=width,
-                                                                            height=height), 307)
+                                                                           width=width,
+                                                                           height=height), 307)
 
 
 @kobo.route("")
@@ -951,7 +955,8 @@ def HandleBookDeletionRequest(book_uuid):
 @csrf.exempt
 @kobo.route("/v1/library/<dummy>", methods=["DELETE", "GET"])
 def HandleUnimplementedRequest(dummy=None):
-    log.debug("Unimplemented Library Request received: %s (request is forwarded to kobo if configured)", request.base_url)
+    log.debug("Unimplemented Library Request received: %s (request is forwarded to kobo if configured)",
+              request.base_url)
     return redirect_or_proxy_request()
 
 
@@ -1004,7 +1009,8 @@ def handle_getests():
 @kobo.route("/v1/affiliate", methods=["GET", "POST"])
 @kobo.route("/v1/deals", methods=["GET", "POST"])
 def HandleProductsRequest(dummy=None):
-    log.debug("Unimplemented Products Request received: %s (request is forwarded to kobo if configured)", request.base_url)
+    log.debug("Unimplemented Products Request received: %s (request is forwarded to kobo if configured)",
+              request.base_url)
     return redirect_or_proxy_request()
 
 
@@ -1021,7 +1027,7 @@ def make_calibre_web_auth_response():
                 "RefreshToken": RefreshToken,
                 "TokenType": "Bearer",
                 "TrackingId": str(uuid.uuid4()),
-                "UserKey": content.get('UserKey',""),
+                "UserKey": content.get('UserKey', ""),
             }
         )
     )

@@ -1,17 +1,43 @@
 #!/bin/bash
 
-XKLB_INTERNAL_CMD="$1"    # e.g. "tubeadd" or "dl"
-URL="$2"
+XKLB_INTERNAL_CMD="$1"    # e.g. "tubeadd" or "dl" or "search"
+URL_OR_SEARCH_TERM="$2"
 
 LOG_FILE="/var/log/xklb.log"
 XKLB_DB_FILE="/library/calibre-web/xklb-metadata.db"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
+# outtmpl explanation:
+# https://github.com/yt-dlp/yt-dlp#output-template
+# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L385-L388
+# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L508-L523
+# /library/downloads/calibre-web/                                                                         (TMP_DOWNLOADS_DIR)
+# └── Youtube                                                                                             (extractor)
+#     └── TED-Ed                                                                                          (uploader_id)
+#         ├── How does an air conditioner actually work？ - Anna Rothschild_224.59k_[6sSDXurPX-s].mp4     ([video file] title + view_count + video_id + extension)
+#         └── How does an air conditioner actually work？ - Anna Rothschild_224.59k_[6sSDXurPX-s].webp    ([thumbnail] title + view_count + video_id + extension)
+OUTTMPL="${TMP_DOWNLOADS_DIR}/%(extractor_key,extractor)s/%(uploader,uploader_id)s/%(title).170B_%(view_count)3.2D_[%(id).64B].%(ext)s"
 VERBOSITY="-vv"
 
 # Or download largest possible HD-style / UltraHD videos, to try to force
 # out-of-memory "502 Bad Gateway" for testing of issues like #37 and #79
 # FORMAT_OPTIONS="--format-sort size"
 FORMAT_OPTIONS="--format best --format-sort 'tbr~1000'"
+
+PATTERNS=(
+    "downloading*"
+    "\[https://.*\]:*"
+    "\[download\] Downloading playlist:*"
+)
+
+match_pattern() {
+    local line=$1
+    for pattern in "${PATTERNS[@]}"; do
+        if [[ $line == $pattern ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
 
 mkdir -p ${TMP_DOWNLOADS_DIR}
 
@@ -23,7 +49,7 @@ log() {
 }
 
 if [ $# -ne 2 ]; then
-    log "Error" "Two arguments are required. Please provide a command (tubeadd/dl) and a URL."
+    log "Error" "Two arguments are required. Please provide a command (tubeadd/dl/search) and a URL or search term."
     exit 1
 fi
 
@@ -53,11 +79,13 @@ log "Info" "Using yt-dlp $(yt-dlp --version)"
 # fetching metadata. This will prevent hanging for playlist URLs or short URLs.
 # "...to be able to list videos that are not downloaded yet"
 if [[ $XKLB_INTERNAL_CMD == "tubeadd" ]]; then
-    xklb_full_cmd="lb tubeadd ${XKLB_DB_FILE} ${URL} --force ${VERBOSITY}"
+    xklb_full_cmd="lb tubeadd '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${VERBOSITY}"
 elif [[ $XKLB_INTERNAL_CMD == "dl" ]]; then
-    xklb_full_cmd="lb dl ${XKLB_DB_FILE} --prefix ${TMP_DOWNLOADS_DIR} --video --search ${URL} ${FORMAT_OPTIONS} --write-thumbnail ${VERBOSITY}"
+    xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' ${FORMAT_OPTIONS} --write-thumbnail --subs --live --live-from-start -o '${OUTTMPL}' ${VERBOSITY}"
+elif [[ $XKLB_INTERNAL_CMD == "search" ]]; then
+    xklb_full_cmd="lb search '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}'"
 else
-    log "Error" "Invalid xklb command. Please choose 'tubeadd' or 'dl'."
+    log "Error" "Invalid xklb command. Please use 'tubeadd', 'dl' or 'search'."
     exit 1
 fi
 
@@ -66,8 +94,8 @@ log "Info" "Running xklb command: ${xklb_full_cmd}"
 # >(...) "process substitution" explained at https://unix.stackexchange.com/a/324170
 # 1>&2 redirect back-to-STDERR to avoid nested (repeat) logging, explained at https://stackoverflow.com/a/15936384
 eval "${xklb_full_cmd}" \
-    > >(while read -r line; do if [[ $line == downloading* || $line =~ \[https://.*\]:* ]]; then echo "$line"; else log "Info" "$line"; fi; done) \
-    2> >(while read -r line; do if [[ $line == downloading* || $line =~ \[https://.*\]:* ]]; then echo "$line"; else log "Debug" "$line" 1>&2; fi; done) &
+    > >(while read -r line; do if match_pattern "$line"; then echo "$line"; else log "Info" "$line"; fi; done) \
+    2> >(while read -r line; do if match_pattern "$line"; then echo "$line"; else log "Debug" "$line" 1>&2; fi; done) &
 # 2024-01-11: HOW THIS WORKS...
 # 0) xklb sends a flood of yt-dlp status message lines like "downloading  59.8%    2.29MiB/s" to STDERR.
 # 1) Then, "2> >(...)" reroutes (only those raw lines!) to STDIN, instead of logging them (as "Debug" lines).
@@ -87,5 +115,5 @@ if [ $rc -eq 0 ]; then
     log "Info" "lb-wrapper's xklb command (${XKLB_INTERNAL_CMD}) completed successfully."
 else
     log "Error" "Error $rc occurred while running lb-wrapper's xklb commands."
-    exit 1
+    exit $rc
 fi

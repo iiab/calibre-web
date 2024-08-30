@@ -26,12 +26,14 @@ from flask_babel.speaklater import LazyString
 
 import os
 
-from flask import send_file, __version__
+from flask import send_file
+import importlib
 
 from . import logger, config
 from .about import collect_stats
 
 log = logger.create()
+
 
 class lazyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -40,6 +42,7 @@ class lazyEncoder(json.JSONEncoder):
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 
+
 def assemble_logfiles(file_name):
     log_list = sorted(glob.glob(file_name + '*'), reverse=True)
     wfd = BytesIO()
@@ -47,7 +50,8 @@ def assemble_logfiles(file_name):
         with open(f, 'rb') as fd:
             shutil.copyfileobj(fd, wfd)
     wfd.seek(0)
-    if int(__version__.split('.')[0]) < 2:
+    version = importlib.metadata.version("flask")
+    if int(version.split('.')[0]) < 2:
         return send_file(wfd,
                          as_attachment=True,
                          attachment_filename=os.path.basename(file_name))
@@ -70,7 +74,8 @@ def send_debug():
         for fp in file_list:
             zf.write(fp, os.path.basename(fp))
     memory_zip.seek(0)
-    if int(__version__.split('.')[0]) < 2:
+    version = importlib.metadata.version("flask")
+    if int(version.split('.')[0]) < 2:
         return send_file(memory_zip,
                          as_attachment=True,
                          attachment_filename="Calibre-Web-debug-pack.zip")
