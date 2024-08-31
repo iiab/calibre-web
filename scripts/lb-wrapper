@@ -83,7 +83,7 @@ if [[ $XKLB_INTERNAL_CMD == "tubeadd" ]]; then
 elif [[ $XKLB_INTERNAL_CMD == "dl" ]]; then
     xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' ${FORMAT_OPTIONS} --write-thumbnail --subs --live --live-from-start -o '${OUTTMPL}' ${VERBOSITY}"
 elif [[ $XKLB_INTERNAL_CMD == "search" ]]; then
-    xklb_full_cmd="lb search '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --to-json"
+    xklb_full_cmd="lb search '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}'"
 else
     log "Error" "Invalid xklb command. Please use 'tubeadd', 'dl' or 'search'."
     exit 1
