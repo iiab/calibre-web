@@ -48,7 +48,6 @@ from flask_babel import get_locale
 from flask import flash
 
 from . import logger, ub, isoLanguages, lb_search
-from .constants import XKLB_DB_FILE
 from .pagination import Pagination
 from .string_helper import strip_whitespaces
 
@@ -976,8 +975,7 @@ class CalibreDB:
         pagination = None
         
         # search also through the subtitles (for videos)
-        searcher = lb_search.CaptionSearcher(XKLB_DB_FILE)
-        other_terms = searcher.get_search_terms(term)
+        other_terms = lb_search.get_search_terms(term)
         # lb_search.get_search_terms returns a list of video titles, "term" parameter is expected to be a book/video title
         term = [term] + other_terms
 
