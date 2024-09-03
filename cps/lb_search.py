@@ -29,22 +29,6 @@ def list_dict_filter_bool(media, keep_0=True):
         for m in media if any(m.get(k) for k in m if k not in keys_to_remove)
     ]
 
-def seconds_to_hhmmss(seconds):
-    """Converts seconds to HH:MM:SS format."""
-    seconds = abs(int(seconds))
-    hours = seconds // 3600
-    minutes = (seconds % 3600) // 60
-    seconds = seconds % 60
-
-    return f"{hours:>2}:{minutes:02d}:{seconds:02d}" if hours else f"   {minutes:>2}:{seconds:02d}"
-
-def col_hhmmss(tbl, col):
-    """Converts a column of time values from seconds to HH:MM:SS format."""
-    for row in tbl:
-        if row.get(col) is not None:
-            row[col] = seconds_to_hhmmss(row[col])
-    return tbl
-
 def merge_captions(captions):
     """Merges overlapping captions for the same video path."""
     def get_end(caption):
