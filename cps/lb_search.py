@@ -10,25 +10,6 @@ def query_database(query, params=()):
         cursor.execute(query, params)
         return [dict(zip([column[0] for column in cursor.description], row)) for row in cursor.fetchall()]
 
-def find_none_keys(list_of_dicts, keep_0=True):
-    """Identifies keys with only None or empty values in a list of dictionaries."""
-    if not list_of_dicts:
-        return []
-
-    keys = list_of_dicts[0].keys()
-    return [
-        key for key in keys
-        if all(d.get(key) is None or (not keep_0 and d.get(key) == 0) for d in list_of_dicts)
-    ]
-
-def list_dict_filter_bool(media, keep_0=True):
-    """Removes dictionary keys that have only None values across all dictionaries in the list."""
-    keys_to_remove = find_none_keys(media, keep_0)
-    return [
-        {k: v for k, v in m.items() if k not in keys_to_remove}
-        for m in media if any(m.get(k) for k in m if k not in keys_to_remove)
-    ]
-
 def merge_captions(captions):
     """Merges overlapping captions for the same video path."""
     def get_end(caption):
