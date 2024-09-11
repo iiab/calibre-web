@@ -60,11 +60,18 @@ def add_book_media_mapping(book_id, media_id):
 # function to get a specific book (which maps to a media entry) for a given caption
 def get_book_for_caption(caption):
     session = Session()
-    
     try:
-        media_id = session.query(Caption).filter(Caption.id == caption).first().media_id
-        book_id = session.query(BookMediaMapping).filter(BookMediaMapping.media_id == media_id).first().book_id
-        return book_id
+        media_entry = session.query(Caption).filter(Caption.id == caption).first()
+        if not media_entry:
+            log.error(f"No media found for caption id: {caption}")
+            return None
+
+        book_entry = session.query(BookMediaMapping).filter(BookMediaMapping.media_id == media_entry.media_id).first()
+        if not book_entry:
+            log.error(f"No book mapping found for media id: {media_entry.media_id}")
+            return None
+
+        return book_entry.book_id
     except Exception as e:
         log.error(f"Error getting book for caption: {e}")
     finally:
