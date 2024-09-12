@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, create_engine, exc
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Text, create_engine, exc
 from sqlalchemy.orm import sessionmaker, scoped_session, relationship
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
