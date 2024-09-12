@@ -46,7 +46,7 @@ CACHE_DIR           = os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
 
 # 2023-11-15: See scripts/lb-wrapper which uses xklb's 'lb tubeadd ...' to save
 # an initial metadata manifest (prior to downloading videos or media) here:
-XKLB_DB_FILE      = "/library/calibre-web/xklb-metadata.db"
+XKLB_DB_FILE      = "/library/calibre-web/xklb.db"
 
 # Maximum number of videos to download, from a playlist or channel
 MAX_VIDEOS_PER_DOWNLOAD = 100
@@ -67,6 +67,7 @@ else:
 
 DEFAULT_SETTINGS_FILE = "app.db"
 DEFAULT_GDRIVE_FILE = "gdrive.db"
+DEFAULT_XKLB_FILE = "xklb.db"
 
 ROLE_USER               = 0 << 0
 ROLE_ADMIN              = 1 << 0
