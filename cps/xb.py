@@ -191,12 +191,12 @@ class PlaylistsFTSIndex(Base):
     idx_value = Column(String)
 
 # SQLite statistics
-class SQLiteStat1(Base):
-    __tablename__ = 'sqlite_stat1'
+# class SQLiteStat1(Base):
+#     __tablename__ = 'sqlite_stat1'
 
-    tbl = Column(String, primary_key=True)
-    idx = Column(String)
-    stat = Column(String)
+#     tbl = Column(String, primary_key=True)
+#     idx = Column(String)
+#     stat = Column(String)
 
 def get_book_for_caption(caption):
     try:
