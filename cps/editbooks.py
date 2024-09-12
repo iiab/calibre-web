@@ -49,6 +49,7 @@ from .redirect import get_redirect_location
 from .file_helper import validate_mime_type
 from .usermanagement import user_login_required, login_required_if_no_ano
 from .string_helper import strip_whitespaces
+from .xb import add_book_media_mapping
 
 editbook = Blueprint('edit-book', __name__)
 log = logger.create()
@@ -233,7 +234,7 @@ def meta():
         return resp
 
     log.info("Received metadata request: %s", request.args)
-    def move_mediafile(requested_file, current_user_name=None, shelf_id=None):
+    def move_mediafile(requested_file, current_user_name=None, shelf_id=None, media_id=None):
         log.info("Requested file: %s", requested_file)
         requested_file = open(requested_file, "rb")
         requested_file.filename = os.path.basename(requested_file.name)
@@ -293,6 +294,8 @@ def meta():
 
             book_path = db_book.path
 
+            add_book_media_mapping(book_id, media_id)
+
         except (OperationalError, IntegrityError, StaleDataError) as e:
             calibre_db.session.rollback()
             log.error_or_exception("Database error: {}".format(e))
@@ -313,7 +316,7 @@ def meta():
         current_user_name = request.args.get("current_user_name", None)
         shelf_id = request.args.get("shelf_id", None)
         try :
-            resp = move_mediafile(requested_file, current_user_name, shelf_id)
+            resp = move_mediafile(requested_file, current_user_name, shelf_id, media_id)
             return jsonify(resp)
         except Exception as ex:
             log.error_or_exception(ex)
