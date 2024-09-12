@@ -214,3 +214,7 @@ def get_book_for_caption(caption):
     except Exception as e:
         log.error(f"Error getting book for caption: {e}")
 
+def create_blank_database(engine):
+    """Creates the database with the required schema."""
+    Base.metadata.create_all(engine)
+    log.info("New blank database created.")
