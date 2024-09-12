@@ -39,7 +39,7 @@ from .updater import Updater
 from .babel import babel, get_locale
 from . import config_sql
 from . import cache_buster
-from . import ub, db
+from . import ub, db, xb
 
 try:
     from flask_limiter import Limiter
@@ -123,6 +123,7 @@ def create_app():
     cli_param.init()
 
     ub.init_db(cli_param.settings_path)
+    xb.init_db(cli_param.xklb_path)
     # pylint: disable=no-member
     encrypt_key, error = config_sql.get_encryption_key(os.path.dirname(cli_param.settings_path))
 
@@ -217,5 +218,3 @@ def create_app():
     register_startup_tasks()
 
     return app
-
-
