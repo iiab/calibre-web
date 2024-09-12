@@ -197,3 +197,20 @@ class SQLiteStat1(Base):
     tbl = Column(String, primary_key=True)
     idx = Column(String)
     stat = Column(String)
+
+def get_book_for_caption(caption):
+    try:
+        media_entry = session.query(Caption).filter(Caption.id == caption).first()
+        if not media_entry:
+            log.error(f"No media found for caption id: {caption}")
+            return None
+
+        book_entry = session.query(BookMediaMapping).filter(BookMediaMapping.media_id == media_entry.media_id).first()
+        if not book_entry:
+            log.error(f"No book mapping found for media id: {media_entry.media_id}")
+            return None
+
+        return book_entry.book_id
+    except Exception as e:
+        log.error(f"Error getting book for caption: {e}")
+
