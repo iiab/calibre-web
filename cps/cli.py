@@ -24,7 +24,7 @@ import socket
 from .constants import CONFIG_DIR as _CONFIG_DIR
 from .constants import STABLE_VERSION as _STABLE_VERSION
 from .constants import NIGHTLY_VERSION as _NIGHTLY_VERSION
-from .constants import DEFAULT_SETTINGS_FILE, DEFAULT_GDRIVE_FILE
+from .constants import DEFAULT_SETTINGS_FILE, DEFAULT_GDRIVE_FILE, DEFAULT_XKLB_FILE
 
 
 def version_info():
@@ -46,6 +46,7 @@ class CliParameter(object):
         self.keyfilepath = None
         self.gd_path = None
         self.settings_path = None
+        self.xklb_path = None
         self.logpath = None
 
     def init(self):
@@ -76,17 +77,22 @@ class CliParameter(object):
                                                             'in advance and exits Calibre-Web')
         parser.add_argument('-r', action='store_true', help='Enable public database reconnect '
                                                             'route under /reconnect')
+        parser.add_argument('-x', metavar='path', help='path and name to xklb db')
         args = parser.parse_args()
 
         self.logpath = args.o or ""
         self.settings_path = args.p or os.path.join(_CONFIG_DIR, DEFAULT_SETTINGS_FILE)
         self.gd_path = args.g or os.path.join(_CONFIG_DIR, DEFAULT_GDRIVE_FILE)
+        self.xklb_path = args.x or os.path.join(_CONFIG_DIR, DEFAULT_XKLB_FILE)
 
         if os.path.isdir(self.settings_path):
             self.settings_path = os.path.join(self.settings_path, DEFAULT_SETTINGS_FILE)
 
         if os.path.isdir(self.gd_path):
             self.gd_path = os.path.join(self.gd_path, DEFAULT_GDRIVE_FILE)
+
+        if os.path.isdir(self.xklb_path):
+            self.xklb_path = os.path.join(self.xklb_path, DEFAULT_XKLB_FILE)
 
         # handle and check parameter for ssl encryption
         self.certfilepath = None
