@@ -218,3 +218,46 @@ def create_blank_database(engine):
     """Creates the database with the required schema."""
     Base.metadata.create_all(engine)
     log.info("New blank database created.")
+
+def init_db(xklb_db_path):
+    global session, xklb_DB_path
+    xklb_DB_path = xklb_db_path
+
+    engine = create_engine(f'sqlite:///{xklb_db_path}', echo=False)
+    Session = scoped_session(sessionmaker(bind=engine))
+    session = Session()
+
+    if not os.path.exists(xklb_db_path):
+        log.info(f"Database file not found at {xklb_db_path}, creating a new blank database.")
+        create_blank_database(engine)
+    else:
+        try:
+            Base.metadata.create_all(engine)
+            log.info(f"Database file found at {xklb_db_path}.")
+        except exc.SQLAlchemyError as e:
+            log.error(f"Error ensuring tables exist in the database: {e}")
+
+def dispose():
+    global session
+    old_session = session
+    session = None
+    if old_session:
+        try:
+            old_session.close()
+        except Exception:
+            pass
+        if old_session.bind:
+            try:
+                old_session.bind.dispose()
+            except Exception:
+                pass
+
+def session_commit(success=None):
+    try:
+        session.commit()
+        if success:
+            log.info(success)
+    except (exc.OperationalError, exc.InvalidRequestError) as e:
+        session.rollback()
+        log.error(f"Commit failed: {e}")
+
