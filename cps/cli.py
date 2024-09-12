@@ -77,6 +77,7 @@ class CliParameter(object):
                                                             'in advance and exits Calibre-Web')
         parser.add_argument('-r', action='store_true', help='Enable public database reconnect '
                                                             'route under /reconnect')
+        # this set of changes adds a new config parameter for the experimental xklb.db file to be used by lb wrapper and makes the path available in the Calibre-Web template: https://github.com/iiab/iiab/blob/master/roles/calibre-web/templates/calibre-web.service.j2
         parser.add_argument('-x', metavar='path', help='path and name to xklb db')
         args = parser.parse_args()
 
