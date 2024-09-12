@@ -25,9 +25,11 @@ import subprocess
 import shutil
 import sqlite3
 from flask_babel import gettext as _
+from sqlalchemy.exc import OperationalError
 
-from . import logger, comic, isoLanguages
+from . import logger, comic, isoLanguages, xb
 from .constants import BookMeta, XKLB_DB_FILE
+from .xb import Media, Caption, session
 from .helper import split_authors
 from .file_helper import get_temp_dir
 from .string_helper import strip_whitespaces
@@ -265,62 +267,82 @@ def pdf_preview(tmp_file_path, tmp_dir):
 def video_metadata(tmp_file_path, original_file_name, original_file_extension):
     if '[' in original_file_name and ']' in original_file_name:
         video_id = original_file_name.split('[')[1].split(']')[0]
-        video_url = None
-        if os.path.isfile(XKLB_DB_FILE):
-            with sqlite3.connect(XKLB_DB_FILE) as conn:
-                conn.row_factory = sqlite3.Row
-                c = conn.cursor()
-                # 2024-02-17: Dedup Design Evolving... https://github.com/iiab/calibre-web/pull/125
-                c.execute("SELECT * FROM media WHERE extractor_id=? AND path LIKE ?", (video_id, f'%{original_file_name}%'))
-                row = c.fetchone()
-                if row is not None:
-                    video_url = row['webpath']
-                    title = row['title']
-                    author = row['path'].split('/calibre-web/')[1].split('/')[1].replace('_', ' ')
-                    publisher = row['path'].split('/calibre-web/')[1].split('/')[0].replace('_', ' ')
-                    # example of time_uploaded: 1696464000
-                    pubdate = row['time_uploaded']
-                    pubdate = datetime.datetime.fromtimestamp(pubdate).strftime('%Y-%m-%d %H:%M:%S')
-                    # find cover file
-                    if os.path.isdir(os.path.dirname(row['path'])):
-                        for file in os.listdir(os.path.dirname(row['path'])):
-                            # 2024-05-30: YouTube (via yt_dlp and xklb) delivers WebP thumbnails by default, and occasionally also JPG thumbnails.
-                            # Vimeo seems to deliver JPG thumbnails every time.
-                            # FYI yt_dlp uses YouTube and Vimeo "extractors" -- among ~1810 websites it can scrape:
-                            # https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md
-                            # https://github.com/yt-dlp/yt-dlp/tree/master/yt_dlp/extractor
-                            if file.lower().endswith(('.webp', '.jpg', '.png', '.gif')) and os.path.splitext(file)[0] == os.path.splitext(os.path.basename(row['path']))[0]:
-                                cover_file_path = os.path.join(os.path.dirname(row['path']), file)
-                                break
-                    else:
-                        log.warning('Cannot find thumbnail file, using default cover')
-                        cover_file_path = os.path.splitext(tmp_file_path)[0] + '.cover.jpg'
-                    c.execute("SELECT * FROM captions WHERE media_id=?", (row['id'],))
-                    row = c.fetchone()
-                    description = f"{row['text']}<br><br>Original Internet URL: <a href='{video_url}' target='_blank'>{video_url}</a>" if row is not None else ''
-                    meta = BookMeta(
-                        file_path=tmp_file_path,
-                        extension=original_file_extension,
-                        title=title,
-                        author=author,
-                        cover=cover_file_path,
-                        description=description,
-                        tags='',
-                        series="",
-                        series_id="",
-                        languages="",
-                        publisher=publisher,
-                        pubdate=pubdate,
-                        identifiers=[])
-                    return meta
+
+        # Ensure session is initialized from xb.py
+        if not session:
+            log.error("Failed to initialize SQLAlchemy session")
+            return None
+
+        try:
+            # Query the media table for the video information
+            media_entry = session.query(Media).filter(
+                Media.extractor_id == video_id,
+                Media.path.like(f'%{original_file_name}%')
+            ).first()
+
+            if media_entry:
+                video_url = media_entry.webpath
+                title = media_entry.title or 'Unknown'
+                path_components = media_entry.path.split('/calibre-web/')
+                
+                if len(path_components) > 1:
+                    author = path_components[1].split('/')[1].replace('_', ' ') if len(path_components[1].split('/')) > 1 else 'Unknown'
+                    publisher = path_components[1].split('/')[0].replace('_', ' ')
                 else:
-                    generate_video_cover(tmp_file_path)
-                    return image_metadata(tmp_file_path, original_file_name, original_file_extension)
-        else:
-            log.warning('Cannot find the xklb database, using default metadata')
+                    author = 'Unknown'
+                    publisher = 'Unknown'
+
+                # Convert time_uploaded timestamp to a readable format
+                pubdate = media_entry.time_uploaded
+                pubdate = datetime.datetime.fromtimestamp(pubdate).strftime('%Y-%m-%d %H:%M:%S')
+
+                # Find the cover file
+                cover_file_path = None
+                if os.path.isdir(os.path.dirname(media_entry.path)):
+                    for file in os.listdir(os.path.dirname(media_entry.path)):
+                        if file.lower().endswith(('.webp', '.jpg', '.png', '.gif')) and os.path.splitext(file)[0] == os.path.splitext(os.path.basename(media_entry.path))[0]:
+                            cover_file_path = os.path.join(os.path.dirname(media_entry.path), file)
+                            break
+
+                if not cover_file_path:
+                    log.warning('Cannot find thumbnail file, using default cover')
+                    cover_file_path = os.path.splitext(tmp_file_path)[0] + '.cover.jpg'
+
+                # Query captions for the media entry
+                caption_entry = session.query(Caption).filter(Caption.media_id == media_entry.id).first()
+                description = f"{caption_entry.text}<br><br>Original Internet URL: <a href='{video_url}' target='_blank'>{video_url}</a>" if caption_entry else ''
+
+                # Create the BookMeta object
+                meta = BookMeta(
+                    file_path=tmp_file_path,
+                    extension=original_file_extension or 'Unknown',
+                    title=title,
+                    author=author,
+                    cover=cover_file_path,
+                    description=description,
+                    tags='',
+                    series="",
+                    series_id="",
+                    languages="",
+                    publisher=publisher,
+                    pubdate=pubdate,
+                    identifiers=[]
+                )
+                return meta
+            else:
+                log.warning('Media entry not found, generating default metadata')
+                generate_video_cover(tmp_file_path)
+                return image_metadata(tmp_file_path, original_file_name, original_file_extension)
+
+        except Exception as e:
+            log.error(f"Error fetching video metadata: {e}")
+            generate_video_cover(tmp_file_path)
+            return image_metadata(tmp_file_path, original_file_name, original_file_extension)
+
     else:
         generate_video_cover(tmp_file_path)
         return image_metadata(tmp_file_path, original_file_name, original_file_extension)
+
 
 # Yes shlex.quote() can help! But flags/options/switchs can still be dangerous:
 # https://stackoverflow.com/questions/49573852/is-python3-shlex-quote-safe
