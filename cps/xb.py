@@ -45,6 +45,7 @@ class Media(Base):
     download_attempts = Column(Integer)
 
     captions = relationship("Caption", back_populates="media")
+    history = relationship("History", back_populates="media")
 
     def __repr__(self):
         return f"<Media(title='{self.title}', path='{self.path}')>"
