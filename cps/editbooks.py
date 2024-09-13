@@ -315,6 +315,7 @@ def meta():
         requested_file = request.args.get("requested_file", None)
         current_user_name = request.args.get("current_user_name", None)
         shelf_id = request.args.get("shelf_id", None)
+        media_id = request.args.get("media_id", None)
         try :
             resp = move_mediafile(requested_file, current_user_name, shelf_id, media_id)
             return jsonify(resp)
