@@ -117,7 +117,6 @@ SessionFactory = None
 Session = None
 
 def init_db(xklb_db_path):
-    engine, SessionFactory, Session
     engine = create_engine(f'sqlite:///{xklb_db_path}', echo=False)
     SessionFactory = sessionmaker(bind=engine)
     Session = scoped_session(SessionFactory)
@@ -130,11 +129,6 @@ def init_db(xklb_db_path):
         print(f"Database file found at {xklb_db_path}.")
         # Ensure that tables, indexes, FTS tables, and triggers exist
         Base.metadata.create_all(engine)
-
-def dispose():
-    global Session
-    if Session:
-        Session.remove()
 
 def session_commit(session, success=None):
     try:
