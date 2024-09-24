@@ -23,7 +23,6 @@ import hashlib
 import subprocess
 # import shlex
 import shutil
-import sqlite3
 from flask_babel import gettext as _
 from sqlalchemy.exc import OperationalError
 
