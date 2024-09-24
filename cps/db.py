@@ -614,7 +614,7 @@ class CalibreDB:
             return False, False
         dbpath = os.path.join(config_calibre_dir, "metadata.db")
         xklb_db_path = os.path.join(config_calibre_dir, DEFAULT_XKLB_FILE)
-        if not os.path.exists(dbpath):
+        if not os.path.exists(dbpath) or not os.path.exists(xklb_db_path):
             return False, False
         try:
             check_engine = create_engine('sqlite://',
@@ -650,11 +650,10 @@ class CalibreDB:
             return None
 
         dbpath = os.path.join(config_calibre_dir, "metadata.db")
-        if not os.path.exists(dbpath):
+        xklb_db_path = os.path.join(config_calibre_dir, DEFAULT_XKLB_FILE)
+        if not os.path.exists(dbpath) or not os.path.exists(xklb_db_path):
             cls.config.invalidate()
             return None
-
-        xklb_db_path = os.path.join(config_calibre_dir, DEFAULT_XKLB_FILE)
 
         try:
             cls.engine = create_engine('sqlite://',
