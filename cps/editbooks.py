@@ -49,7 +49,7 @@ from .redirect import get_redirect_location
 from .file_helper import validate_mime_type
 from .usermanagement import user_login_required, login_required_if_no_ano
 from .string_helper import strip_whitespaces
-from .xb import add_book_media_mapping
+# from .xb import add_book_media_mapping
 
 editbook = Blueprint('edit-book', __name__)
 log = logger.create()
@@ -286,7 +286,7 @@ def meta():
             link = '<a href="{}">{}</a>'.format(
                 url_for("web.show_book", book_id=book_id), escape(title)
             )
- 
+
             helper.add_book_to_thumbnail_cache(book_id)
 
             if shelf_id is not None:
@@ -294,7 +294,7 @@ def meta():
 
             book_path = db_book.path
 
-            add_book_media_mapping(book_id, media_id)
+            # add_book_media_mapping(book_id, media_id)
 
         except (OperationalError, IntegrityError, StaleDataError) as e:
             calibre_db.session.rollback()
@@ -322,7 +322,7 @@ def meta():
         except Exception as ex:
             log.error_or_exception(ex)
             return jsonify({"error": str(ex)}), 500
-        
+
     if request.method == "GET" and "shelf_title" in request.args:
         shelf_title = request.args.get("shelf_title", None)
         current_user_name = request.args.get("current_user_name", None)
