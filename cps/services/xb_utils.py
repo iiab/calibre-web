@@ -1,18 +1,18 @@
 import os
 import re
-import logging
 from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import literal
-from cps.xb import Media, Caption, Playlists
+from cps.xb import XKLBDB, Media, Caption, Playlists
 from cps.subproc_wrapper import process_open
+from cps import logger
 
-log = logging.getLogger(__name__)
+log = logger.create()
 
 class Settings:
     LB_WRAPPER = os.getenv('LB_WRAPPER', 'lb-wrapper')
     TIMEOUT = 120  # seconds
-    MAX_VIDEOS_PER_DOWNLOAD = 10  # Will use constants.py for this later
+    MAX_VIDEOS_PER_DOWNLOAD = 10
 
 def format_media_url(media_url):
     """Formats the media URL by removing query parameters."""
@@ -35,7 +35,8 @@ class DatabaseService:
     """Service class for database operations."""
 
     def __init__(self, session: Session):
-        self.session = session
+        db = XKLBDB()
+        self.session = db.get_session()
 
     def remove_shorts_from_db(self):
         """Deletes media entries where the path contains 'shorts'."""
