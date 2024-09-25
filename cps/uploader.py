@@ -28,7 +28,7 @@ from sqlalchemy.exc import OperationalError
 
 from . import logger, comic, isoLanguages, xb
 from .constants import BookMeta, XKLB_DB_FILE
-from .xb import Media, Caption, session
+from .xb import XKLBDB, Media, Caption
 from .helper import split_authors
 from .file_helper import get_temp_dir
 from .string_helper import strip_whitespaces
@@ -268,6 +268,7 @@ def video_metadata(tmp_file_path, original_file_name, original_file_extension):
         video_id = original_file_name.split('[')[1].split(']')[0]
 
         # Ensure session is initialized from xb.py
+        session = XKLBDB().get_session()
         if not session:
             log.error("Failed to initialize SQLAlchemy session")
             return None
