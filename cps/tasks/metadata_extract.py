@@ -11,7 +11,7 @@ from cps.services.xb_utils import (
     DatabaseService, format_media_url, format_original_url,
     Settings, execute_subprocess
 )
-from cps.xb import Media
+from cps.xb import XKLBDB, Media
 from sqlalchemy.orm import Session
 from .. import logger
 
@@ -20,9 +20,10 @@ log = logger.create()
 class TaskMetadataExtract(CalibreTask):
     """Task class for metadata extraction."""
 
-    def __init__(self, session: Session, task_message, media_url, original_url, current_user_name):
+    def __init__(self, task_message, media_url, original_url, current_user_name):
         super(TaskMetadataExtract, self).__init__(task_message)
-        self.session = session
+        db = XKLBDB()
+        self.session = db.get_session()
         self.db_service = DatabaseService(self.session)
         self.message = task_message
         self.media_url = format_media_url(media_url)
@@ -160,7 +161,7 @@ class TaskMetadataExtract(CalibreTask):
 
         try:
             with self.session.begin():
-                self.db_service.remove_shorts_from_db()
+                # self.db_service.remove_shorts_from_db()
                 requested_urls = self.db_service.fetch_requested_urls(self.unavailable)
 
                 if not requested_urls:
