@@ -7,8 +7,7 @@ from flask_babel import lazy_gettext as N_, gettext as _
 
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
 from cps.services.xb_utils import DatabaseService, Settings, execute_subprocess
-from cps.xb import Media
-from sqlalchemy.orm import Session
+from cps.xb import XKLBDB, Media
 from .. import logger
 from time import sleep
 
@@ -17,9 +16,10 @@ log = logger.create()
 class TaskDownload(CalibreTask):
     """Task class for downloading media."""
 
-    def __init__(self, session: Session, task_message, media_url, original_url, current_user_name, shelf_id, duration, live_status):
+    def __init__(self, task_message, media_url, original_url, current_user_name, shelf_id, duration, live_status):
         super(TaskDownload, self).__init__(task_message)
-        self.session = session
+        db = XKLBDB()
+        self.session = db.get_session()
         self.db_service = DatabaseService(self.session)
         self.message = task_message
         self.media_url = media_url
