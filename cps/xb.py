@@ -1,11 +1,13 @@
-import os
 from sqlalchemy import (
-    create_engine, Column, Integer, Text, ForeignKey, Index
+    create_engine, Column, Integer, Text, ForeignKey, Index, exc
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, scoped_session, sessionmaker
-from sqlalchemy import exc
-from sqlalchemy.sql import text
+from sqlalchemy.pool import StaticPool
+from . import logger
+from .constants import XKLB_DB_FILE
+
+log = logger.create()
 
 Base = declarative_base()
 
@@ -111,30 +113,48 @@ class Playlists(Base):
     def __repr__(self):
         return f"<Playlists(title='{self.title}', path='{self.path}')>"
 
-# Initialize the SQLAlchemy engine and session
-engine = None
-SessionFactory = None
-Session = None
+class XKLBDB:
+    _instance = None
 
-def init_db(xklb_db_path):
-    engine = create_engine(f'sqlite:///{xklb_db_path}', echo=False)
-    SessionFactory = sessionmaker(bind=engine)
-    Session = scoped_session(SessionFactory)
+    def __new__(cls, XKLB_DB_FILE=XKLB_DB_FILE):
+        if cls._instance is None:
+            cls._instance = super(XKLBDB, cls).__new__(cls)
+            cls._instance.XKLB_DB_FILE = XKLB_DB_FILE
+            cls._instance._init_engine()
+            cls._instance._init_session_factory()
+            cls._instance.session = cls._instance.SessionFactory()
+            log.info("XKLBDB instance created with database file: %s", cls._instance.XKLB_DB_FILE)
+        return cls._instance
 
-    if not os.path.exists(xklb_db_path):
-        print(f"Database file not found at {xklb_db_path}, importing a new blank database.")
-        pass
-        print("New blank database imported.")
-    else:
-        print(f"Database file found at {xklb_db_path}.")
-        # Ensure that tables, indexes, FTS tables, and triggers exist
-        Base.metadata.create_all(engine)
+    def _init_engine(self):
+        self.engine = create_engine(
+            f'sqlite:///{XKLB_DB_FILE}',
+            echo=True,
+            connect_args={'check_same_thread': False},
+            poolclass=StaticPool
+        )
 
-def session_commit(session, success=None):
-    try:
-        session.commit()
-        if success:
-            print(success)
-    except (exc.OperationalError, exc.InvalidRequestError) as e:
-        session.rollback()
-        print(f"Commit failed: {e}")
+    def _init_session_factory(self):
+        self.SessionFactory = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=True))
+        self.session = self.SessionFactory()
+
+    def get_session(self):
+        return self.session
+
+    def session_commit(self, success=None):
+        try:
+            self.session.commit()
+            if success:
+                log.info(success)
+        except (exc.OperationalError, exc.InvalidRequestError) as e:
+            self.session.rollback()
+            log.error(f"Commit failed: {e}")
+
+    def dispose(self):
+        if self.session:
+            self.session.close()
+            self.SessionFactory.remove()
+        if self.engine:
+            self.engine.dispose()
+        XKLBDB._instance = None
+        log.info("XKLBDB instance disposed.")
