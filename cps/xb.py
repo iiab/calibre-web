@@ -1,3 +1,4 @@
+import os
 from sqlalchemy import (
     create_engine, Column, Integer, Text, ForeignKey, Index, exc
 )
@@ -137,6 +138,13 @@ class XKLBDB:
     def _init_session_factory(self):
         self.SessionFactory = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=True))
         self.session = self.SessionFactory()
+
+        if not os.path.exists(XKLB_DB_FILE):
+            print(f"Database file not found at {XKLB_DB_FILE}, creating a new blank database.")
+            Base.metadata.create_all(self.engine)
+            print("New blank database created.")
+        else:
+            print(f"Database file found at {XKLB_DB_FILE}.")
 
     def get_session(self):
         return self.session
