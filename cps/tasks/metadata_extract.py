@@ -107,18 +107,19 @@ class TaskMetadataExtract(CalibreTask):
         """Adds download tasks to the worker thread."""
         log.debug("Adding download tasks to the worker thread.")
         num_requested_urls = len(requested_urls)
-        total_duration = sum(url_data["duration"] for url_data in requested_urls.values())
-
+        total_duration = 0
         for index, (requested_url, url_data) in enumerate(requested_urls.items()):
+            duration = url_data["duration"]
+            total_duration += duration
+            live_status = url_data["live_status"]
             task_download = TaskDownload(
-                self.session,
                 _("Downloading %(url)s...", url=requested_url),
                 requested_url,
                 self.original_url,
                 self.current_user_name,
                 self.shelf_id,
-                duration=str(url_data["duration"]),
-                live_status=url_data["live_status"]
+                str(duration),
+                live_status
             )
             WorkerThread.add(self.current_user_name, task_download)
 
