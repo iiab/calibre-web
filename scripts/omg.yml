@@ -1,4 +1,4 @@
-# LAST UPDATED: July 25, 2024
+# LAST UPDATED: October 10, 2024
 
 # USAGE: https://github.com/iiab/calibre-web/wiki#wrench-installation
 
@@ -8,6 +8,7 @@ runcmd:
     cat >> /etc/iiab/local_vars.yml << EOF
     calibreweb_install: True
     calibreweb_enabled: True
+    nodocs: True
     kolibri_install: False
     kolibri_enabled: False
     kiwix_install: False
@@ -18,6 +19,8 @@ runcmd:
     matomo_install: False
     matomo_enabled: False
     captiveportal_install: False
+    network_install: False
+    network_enabled: False
     admin_console_install: False
     admin_console_enabled: False
     EOF
