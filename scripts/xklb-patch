@@ -3,3 +3,13 @@
 # Define the file path and path flag
 FILE_PATH="$HOME/.local/pipx/venvs/xklb/lib/python3.12/site-packages/xklb/createdb/tube_add.py"
 PATCH_FLAG="/etc/iiab/install-flags/xklb-patched"
+
+# Check if the patch flag exists
+if [[ -f "$PATCH_FLAG" ]]; then
+    if ! grep -q "# PATCHED: live_status and error columns added" "$FILE_PATH"; then
+        echo "The patch seems to be missing after an upgrade. Reapplying the patch..."
+    else
+        echo "The file is already patched. No changes made."
+        exit 0
+    fi
+fi
