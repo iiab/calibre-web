@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# FILE_PATH="$HOME/.local/pipx/venvs/xklb/lib/python3.12/site-packages/xklb/createdb/tube_add.py"
+# Debian 12 and Ubuntu 23.10 use: /root/.local/pipx/... 
+# Debian 13 and Ubuntu 24.04 use: /root/.local/share/pipx/...
+# Running 'updatedb' is an ugly hack that might be very slow (optimize later!)
+# but at least fixes (a) "share" in path on new OS's (b) Python version in path
+updatedb
+FILE_PATH=$(locate /site-packages/xklb/createdb/tube_add.py | grep /pipx/venvs/xklb/lib/ | grep /root/.local/ | head -1)
+
+# Have both lines been patched in?
+if grep -q '"live_status": None,' "$FILE_PATH" && grep -q '"error": None,' "$FILE_PATH"; then
+    echo "tube_add.py already patched (to help add columns live_status and error). No changes necessary."
+else
+    echo "Patching tube_add.py, to help add columns live_status and error (needed when xklb-metadata.db is created or REcreated!)"
+    sed -i '/"time_deleted": 0,/a\        "live_status": None,\n        "error": None,' "$FILE_PATH"
+    echo "tube_add.py has been successfully patched."
+fi
