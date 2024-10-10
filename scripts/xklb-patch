@@ -1,21 +1,16 @@
 #!/bin/bash
 
-# Define the file path and path flag
 FILE_PATH="$HOME/.local/pipx/venvs/xklb/lib/python3.12/site-packages/xklb/createdb/tube_add.py"
-PATCH_FLAG="/etc/iiab/install-flags/xklb-patched"
 
 # Check if the patch flag exists
-if [[ -f "$PATCH_FLAG" ]]; then
-    if ! grep -q "# PATCHED: live_status and error columns added" "$FILE_PATH"; then
-        echo "The patch seems to be missing after an upgrade. Reapplying the patch..."
-    else
-        echo "The file is already patched. No changes made."
-        exit 0
-    fi
+if ! grep -q "# PATCHED by IIAB: so live_status and error columns can be added" "$FILE_PATH"; then
+    echo "Patch to tube_add.py seems missing. Reapplying patch... (helps add columns live_status and error)"
+else
+    echo "tube_add.py is already patched (helps add columns live_status and error). No changes necessary."
+    exit 0
 fi
 
-# Insert the 'live_status' and 'error' columns
+# Logic to add 'live_status' and 'error' columns (needed when xklb-metadata.db is created or REcreated!)
 sed -i '/"time_deleted": 0,/a \ \ \ \ \ \ \ \ "live_status": None, \n\ \ \ \ \ \ \ \ "error": None,' "$FILE_PATH"
-echo "# PATCHED: live_status and error columns added" >> "$FILE_PATH"
-touch "$PATCH_FLAG"
+echo "# PATCHED by IIAB: so live_status and error columns can be added" >> "$FILE_PATH"
 echo "tube_add.py has been successfully patched"
