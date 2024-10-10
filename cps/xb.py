@@ -140,9 +140,7 @@ class XKLBDB:
         self.session = self.SessionFactory()
 
         if not os.path.exists(XKLB_DB_FILE):
-            print(f"Database file not found at {XKLB_DB_FILE}, creating a new blank database.")
-            Base.metadata.create_all(self.engine)
-            print("New blank database created.")
+            print(f"Database file not found at {XKLB_DB_FILE}.")
         else:
             print(f"Database file found at {XKLB_DB_FILE}.")
 
