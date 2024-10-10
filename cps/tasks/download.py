@@ -20,6 +20,7 @@ class TaskDownload(CalibreTask):
         self.message = task_message
         self.media_url = media_url
         self.media_url_link = f'<a href="{media_url}" target="_blank">{media_url}</a>'
+        self.media_id = None
         self.original_url = original_url
         self.current_user_name = current_user_name
         self.shelf_id = shelf_id
@@ -89,7 +90,8 @@ class TaskDownload(CalibreTask):
                 # Database operations
                 with sqlite3.connect(XKLB_DB_FILE) as conn:
                     try:
-                        requested_file = conn.execute("SELECT path FROM media WHERE webpath = ? AND path NOT LIKE 'http%'", (self.media_url,)).fetchone()[0]
+                        # requested_file = conn.execute("SELECT path FROM media WHERE webpath = ? AND path NOT LIKE 'http%'", (self.media_url,)).fetchone()[0]
+                        self.media_id, requested_file = conn.execute("SELECT id, path FROM media WHERE webpath = ? AND path NOT LIKE 'http%'", (self.media_url,)).fetchone()
 
                         # Abort if there is not a path
                         if not requested_file:
@@ -101,16 +103,16 @@ class TaskDownload(CalibreTask):
                             else:
                                 log.error("%s failed to download: No path or error found in the database (likely the video failed due to unavailable fragments?)", self.media_url)
                                 self.message = f"{self.media_url_link} failed to download: No path or error found in the database (likely the video failed due to unavailable fragments?)"
-                                media_id = conn.execute("SELECT id FROM media WHERE webpath = ?", (self.media_url,)).fetchone()[0]
+                                self.media_id = conn.execute("SELECT id FROM media WHERE webpath = ?", (self.media_url,)).fetchone()[0]
                                 conn.execute("DELETE FROM media WHERE webpath = ?", (self.media_url,))
-                                conn.execute("DELETE FROM captions WHERE media_id = ?", (media_id,))
+                                conn.execute("DELETE FROM captions WHERE media_id = ?", (self.media_id,))
                             return
                     except sqlite3.Error as db_error:
                         log.error("An error occurred while trying to connect to the database: %s", db_error)
                         self.message = f"{self.media_url_link} failed to download: {db_error}"
 
                     self.message = self.message + "\n" + f"Almost done..."
-                    response = requests.get(self.original_url, params={"requested_file": requested_file, "current_user_name": self.current_user_name, "shelf_id": self.shelf_id})
+                    response = requests.get(self.original_url, params={"requested_file": requested_file, "current_user_name": self.current_user_name, "shelf_id": self.shelf_id, "media_id": self.media_id})
                     if response.status_code == 200:
                         log.info("Successfully sent the requested file to %s", self.original_url)
                         file_downloaded = response.json()["file_downloaded"]
