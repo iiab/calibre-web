@@ -13,3 +13,9 @@ if [[ -f "$PATCH_FLAG" ]]; then
         exit 0
     fi
 fi
+
+# Insert the 'live_status' and 'error' columns
+sed -i '/"time_deleted": 0,/a \ \ \ \ \ \ \ \ "live_status": None, \n\ \ \ \ \ \ \ \ "error": None,' "$FILE_PATH"
+echo "# PATCHED: live_status and error columns added" >> "$FILE_PATH"
+touch "$PATCH_FLAG"
+echo "tube_add.py has been successfully patched"
