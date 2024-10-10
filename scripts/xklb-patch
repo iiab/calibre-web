@@ -1,1 +1,5 @@
+#!/bin/bash
 
+# Define the file path and path flag
+FILE_PATH="$HOME/.local/pipx/venvs/xklb/lib/python3.12/site-packages/xklb/createdb/tube_add.py"
+PATCH_FLAG="/etc/iiab/install-flags/xklb-patched"
