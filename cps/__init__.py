@@ -153,7 +153,8 @@ def create_app():
     db.CalibreDB.setup_db(config.config_calibre_dir, cli_param.settings_path)
     calibre_db.init_db()
 
-    p = process_open("xklb-patch", newlines=True)
+    XKLB_PATCH = os.getenv('XKLB_PATCH', 'xklb-patch')
+    p = process_open([XKLB_PATCH], newlines=True)
     while p.poll is None:
         log.info(p.stdout.readline())
     p.wait()
