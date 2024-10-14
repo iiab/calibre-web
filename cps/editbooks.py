@@ -49,7 +49,7 @@ from .redirect import get_redirect_location
 from .file_helper import validate_mime_type
 from .usermanagement import user_login_required, login_required_if_no_ano
 from .string_helper import strip_whitespaces
-# from .xb import add_book_media_mapping
+from .services.xb_utils import MappingService
 
 editbook = Blueprint('edit-book', __name__)
 log = logger.create()
@@ -294,7 +294,7 @@ def meta():
 
             book_path = db_book.path
 
-            # add_book_media_mapping(book_id, media_id)
+            MappingService().add_book_media_mapping(media_id, book_id)
 
         except (OperationalError, IntegrityError, StaleDataError) as e:
             calibre_db.session.rollback()
