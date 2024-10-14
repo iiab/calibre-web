@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from sqlalchemy import literal
 from cps.xb import XKLBDB, Media, Caption, Playlists
+from cps.glue_db import GlueDB, MediaBooksMapping
 from cps.subproc_wrapper import process_open
 from cps import logger
 
@@ -148,4 +149,52 @@ class DatabaseService:
         except Exception as e:
             self.session.rollback()
             log.error("An error occurred while deleting media and captions: %s", e)
+            raise
+
+class MappingService:
+    """Service class for mapping operations."""
+    def __init__(self, session: Session):
+        db = GlueDB()
+        self.session = db.get_session()
+
+    def add_book_media_mapping(self, media_id, book_id):
+        """Adds a mapping between the media_id and the book_id."""
+        try:
+            mapping = MediaBooksMapping(media_id=media_id, book_id=book_id)
+            # to avoid duplicate entries, use the merge method
+            self.session.merge(mapping)
+            self.session.commit()
+            log.info("Mapping added: %s", mapping)
+        except Exception as e:
+            self.session.rollback()
+            log.error("An error occurred while adding mapping: %s", e)
+            raise
+
+    def get_mapping(self, media_id):
+        """Gets the mapping for the given media_id."""
+        try:
+            mapping = self.session.query(MediaBooksMapping).filter(MediaBooksMapping.media_id == media_id).first()
+            if mapping:
+                log.info("Mapping found: %s", mapping)
+                return mapping
+            else:
+                log.error("No mapping found for media ID: %s", media_id)
+                return None
+        except Exception as e:
+            log.error("An error occurred while getting mapping: %s", e)
+            raise
+
+    def update_mapping(self, media_id, book_id):
+        """Updates the mapping for the given media_id."""
+        try:
+            mapping = self.session.query(MediaBooksMapping).filter(MediaBooksMapping.media_id == media_id).first()
+            if mapping:
+                mapping.book_id = book_id
+                self.session.commit()
+                log.info("Mapping updated: %s", mapping)
+            else:
+                log.error("No mapping found for media ID: %s", media_id)
+        except Exception as e:
+            self.session.rollback()
+            log.error("An error occurred while updating mapping: %s", e)
             raise
