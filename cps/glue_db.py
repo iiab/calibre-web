@@ -4,6 +4,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import StaticPool
 from . import logger
+from .constants import MAPPING_DB_FILE
 
 log = logger.create()
 Base = declarative_base()
@@ -19,30 +20,37 @@ class MediaBooksMapping(Base):
 class GlueDB:
     _instance = None
 
-    def __new__(cls, glue_db_path=None):
+    def __new__(cls, mapping_db_file=None):
         if cls._instance is None:
             cls._instance = super(GlueDB, cls).__new__(cls)
-            cls._instance.glue_db_path = glue_db_path or os.getenv('GLUE_DB_FILE', 'iiab-glue.db') # to be determined / constants.py is a good candidate
+            cls._instance._mapping_db_file = mapping_db_file or MAPPING_DB_FILE
             cls._instance._init_engine()
             cls._instance._init_session_factory()
-            cls._instance.session = cls._instance.SessionFactory()
-            log.info("GlueDB instance created with database file: %s", cls._instance.glue_db_path)
+            log.info("GlueDB instance created with database file: %s", cls._instance._mapping_db_file)
         return cls._instance
 
     def _init_engine(self):
-        if not os.path.exists(self.glue_db_path):
-            log.info(f"Creating new glue database at {self.glue_db_path}.")
-            open(self.glue_db_path, 'a').close()
+        # Ensure database file exists, if not, create it
+        if not os.path.exists(self._mapping_db_file):
+            log.info(f"Creating new glue database at {self._mapping_db_file}")
+            try:
+                open(self._mapping_db_file, 'a').close()  # Create the empty file
+            except OSError as e:
+                log.error(f"Failed to create database file: {e}")
+                raise
+
         self.engine = create_engine(
-            f'sqlite:///{self.glue_db_path}',
+            f'sqlite:///{self._mapping_db_file}',
             echo=False,
             connect_args={'check_same_thread': False},
             poolclass=StaticPool
         )
-        Base.metadata.create_all(self.engine)
+        Base.metadata.create_all(self.engine, checkfirst=True)
 
     def _init_session_factory(self):
-        self.SessionFactory = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=True))
+        self.SessionFactory = scoped_session(
+            sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
+        )
         self.session = self.SessionFactory()
 
     def get_session(self):
@@ -56,4 +64,3 @@ class GlueDB:
             self.engine.dispose()
         GlueDB._instance = None
         log.info("GlueDB instance disposed.")
-
