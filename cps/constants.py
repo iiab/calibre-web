@@ -48,6 +48,8 @@ CACHE_DIR           = os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
 # an initial metadata manifest (prior to downloading videos or media) here:
 XKLB_DB_FILE      = "/library/calibre-web/xklb-metadata.db"
 
+MAPPING_DB_FILE     = "/library/calibre-web/iiab-glue.db"
+
 # Maximum number of videos to download, from a playlist or channel
 MAX_VIDEOS_PER_DOWNLOAD = 100
 
