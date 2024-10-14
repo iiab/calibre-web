@@ -29,7 +29,7 @@ from uuid import uuid4
 from sqlite3 import OperationalError as sqliteOperationalError
 from sqlalchemy import create_engine
 from sqlalchemy import Table, Column, ForeignKey, CheckConstraint
-from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float
+from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float, or_
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.ext.declarative import DeclarativeMeta
@@ -47,9 +47,9 @@ from flask_babel import gettext as _
 from flask_babel import get_locale
 from flask import flash
 
-from . import logger, ub, isoLanguages, lb_search
-from .constants import XKLB_DB_FILE
+from . import logger, ub, isoLanguages
 from .pagination import Pagination
+from .services.xb_utils import CaptionSearcher
 from .string_helper import strip_whitespaces
 
 log = logger.create()
@@ -974,19 +974,11 @@ class CalibreDB:
     def get_search_results(self, term, config, offset=None, order=None, limit=None, *join):
         order = order[0] if order else [Books.sort]
         pagination = None
-        
-        # search also through the subtitles (for videos)
-        searcher = lb_search.CaptionSearcher(XKLB_DB_FILE)
-        other_terms = searcher.get_search_terms(term)
-        # lb_search.get_search_terms returns a list of video titles, "term" parameter is expected to be a book/video title
-        term = [term] + other_terms
-
-        result = list()
-        for term_part in term:
-            # the search_query function below only searches for books titles
-            result += self.search_query(term_part, config, *join).order_by(*order).all()
-        # we need to remove duplicates because the same book/video could be found multiple times
-        result = list(set(result))
+        result = self.search_query(term, config, *join).order_by(*order).all
+        ub.store_combo_ids(result)
+        searcher = CaptionSearcher()
+        books_ids_from_captions = searcher.get_captions_search_results(term)
+        result = list(set(result + [self.get_book(book_id) for book_id in books_ids_from_captions]))
         result_count = len(result)
         if offset is not None and limit is not None:
             offset = int(offset)
@@ -996,7 +988,6 @@ class CalibreDB:
             offset = 0
             limit_all = result_count
 
-        ub.store_combo_ids(result)
         entries = self.order_authors(result[offset:limit_all], list_return=True, combined=True)
 
         return entries, result_count, pagination
