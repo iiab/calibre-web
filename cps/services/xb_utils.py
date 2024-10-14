@@ -1,6 +1,8 @@
 import os
 import re
+from copy import deepcopy
 from datetime import datetime
+from itertools import groupby
 from sqlalchemy.orm import Session
 from sqlalchemy import literal
 from cps.xb import XKLBDB, Media, Caption, Playlists
@@ -198,3 +200,71 @@ class MappingService:
             self.session.rollback()
             log.error("An error occurred while updating mapping: %s", e)
             raise
+
+class CaptionSearcher:
+    def __init__(self):
+        self.xklb_session = XKLBDB().get_session()
+        self.glue_session = GlueDB().get_session()
+
+    def _query_database(self, term):
+        """Executes a query on the xklb database and retrieves book_ids from iiab-glue.db."""
+        captions = self.xklb_session.query(
+            Caption.media_id,
+            Caption.text,
+            Caption.time
+        ).filter(Caption.text.like(f'%{term}%')).all()
+
+        media_ids = [caption[0] for caption in captions]
+
+        # Get corresponding book_ids from the glue database
+        mappings = self.glue_session.query(MediaBooksMapping).filter(
+            MediaBooksMapping.media_id.in_(media_ids)
+        ).all()
+        media_id_to_book_id = {mapping.media_id: mapping.book_id for mapping in mappings}
+
+        # Combine captions with book_ids
+        captions_list = []
+        for caption in captions:
+            media_id = caption[0]
+            book_id = media_id_to_book_id.get(media_id)
+            if book_id:
+                captions_list.append({
+                    'book_id': book_id,
+                    'text': caption[1],
+                    'time': caption[2]
+                })
+
+        return captions_list
+
+    def _merge_captions(self, captions):
+        """Merges overlapping captions for the same book_id."""
+        def get_end(caption):
+            return caption["time"] + (len(caption["text"]) / 4.2 / 220 * 60)
+
+        merged_captions = []
+        for book_id, group in groupby(captions, key=lambda x: x["book_id"]):
+            group = list(group)
+            merged_group = deepcopy(group[0])
+            merged_group["end"] = get_end(group[0])
+            for i in range(1, len(group)):
+                if group[i]["time"] <= merged_group["end"]:
+                    merged_group["text"] += " " + group[i]["text"]
+                    merged_group["end"] = get_end(group[i])
+                else:
+                    merged_captions.append(merged_group)
+                    merged_group = deepcopy(group[i])
+                    merged_group["end"] = get_end(group[i])
+            merged_captions.append(merged_group)
+
+        return merged_captions
+
+    def get_captions_search_results(self, term):
+        """Searches for captions matching the term and returns book_ids."""
+        captions = self._query_database(term)
+        if not captions:
+            return []
+
+        merged_captions = self._merge_captions(captions)
+        book_ids = list({caption['book_id'] for caption in merged_captions})
+
+        return book_ids
