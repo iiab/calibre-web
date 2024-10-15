@@ -13,8 +13,8 @@
 BASE_DIR="/root/.local/"
 
 # Find db_media.py and objects.py
-DB_MEDIA_PY=$(find "$BASE_DIR" -type f -path '*/site-packages/xklb/mediadb/db_media.py' 2>/dev/null | head -1)
-OBJECTS_PY=$(find "$BASE_DIR" -type f -path '*/site-packages/xklb/utils/objects.py' 2>/dev/null | head -1)
+DB_MEDIA_PY=$(find "$BASE_DIR" -type f -path '*/site-packages/xklb/mediadb/db_media.py' | head -1)
+OBJECTS_PY=$(find "$BASE_DIR" -type f -path '*/site-packages/xklb/utils/objects.py' | head -1)
 
 # Patch objects.py to add the keep_keys parameter to dict_filter_bool
 if grep -q 'def dict_filter_bool(kwargs, keep_0=True, keep_keys=None)' "$OBJECTS_PY"; then
