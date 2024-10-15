@@ -20,27 +20,21 @@ class MediaBooksMapping(Base):
 class GlueDB:
     _instance = None
 
-    def __new__(cls, mapping_db_file=None):
+    def __new__(cls):
         if cls._instance is None:
             cls._instance = super(GlueDB, cls).__new__(cls)
-            cls._instance._mapping_db_file = mapping_db_file or MAPPING_DB_FILE
             cls._instance._init_engine()
             cls._instance._init_session_factory()
-            log.info("GlueDB instance created with database file: %s", cls._instance._mapping_db_file)
+            cls._instance.session = cls._instance.SessionFactory()
+            log.info("GlueDB instance created with database file: %s", MAPPING_DB_FILE)
         return cls._instance
 
     def _init_engine(self):
-        # Ensure database file exists, if not, create it
-        if not os.path.exists(self._mapping_db_file):
-            log.info(f"Creating new glue database at {self._mapping_db_file}")
-            try:
-                open(self._mapping_db_file, 'a').close()  # Create the empty file
-            except OSError as e:
-                log.error(f"Failed to create database file: {e}")
-                raise
-
+        if not os.path.exists(MAPPING_DB_FILE):
+            log.info(f"Creating new glue database at {MAPPING_DB_FILE}")
+            open(MAPPING_DB_FILE, 'a').close()
         self.engine = create_engine(
-            f'sqlite:///{self._mapping_db_file}',
+            f'sqlite:///{MAPPING_DB_FILE}',
             echo=False,
             connect_args={'check_same_thread': False},
             poolclass=StaticPool
@@ -49,7 +43,7 @@ class GlueDB:
 
     def _init_session_factory(self):
         self.SessionFactory = scoped_session(
-            sessionmaker(bind=self.engine, autocommit=False, autoflush=False)
+            sessionmaker(bind=self.engine, autocommit=False, autoflush=True)
         )
         self.session = self.SessionFactory()
 
