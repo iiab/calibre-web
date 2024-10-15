@@ -5,15 +5,42 @@
 # Debian 13 and Ubuntu 24.04 use: /root/.local/share/pipx/...
 # Running 'updatedb' is an ugly hack that might be very slow (optimize later!)
 # but at least fixes (a) "share" in path on new OS's (b) Python version in path
-updatedb
-FILE_PATH=$(locate /site-packages/xklb/mediadb/db_media.py | grep /pipx/venvs/xklb/lib/ | grep '/root/.local' | head -1)
+# updatedb
+# FILE_PATH=$(locate /site-packages/xklb/mediadb/db_media.py | grep /pipx/venvs/xklb/lib/ | grep '/root/.local' | head -1)
 
-# Check if the patch has already been applied
-if grep -q 'entry = {k: v for k, v in entry.items() if v is not None or k == "error"}' "$FILE_PATH"; then
-    echo "db_media.py already patched to retain 'error' key when value is None. No changes necessary."
+# Locate db_media.py and objects.py using find instead of updatedb and locate
+# Adjust the base directory to your environment
+BASE_DIR="/root/.local/pipx/venvs/xklb/lib"
+
+# Find db_media.py and objects.py
+DB_MEDIA_PY=$(find "$BASE_DIR" -path '*/site-packages/xklb/mediadb/db_media.py' 2>/dev/null | head -1)
+OBJECTS_PY=$(find "$BASE_DIR" -path '*/site-packages/xklb/utils/objects.py' 2>/dev/null | head -1)
+
+# Patch objects.py to add the keep_keys parameter to dict_filter_bool
+if grep -q 'def dict_filter_bool(kwargs, keep_0=True, keep_keys=None)' "$OBJECTS_PY"; then
+    echo "objects.py already patched. No changes necessary."
 else
-    echo "Patching db_media.py to ensure 'error' key is retained even when its value is None."
-    sed -i.bak 's/entry = objects\.dict_filter_bool(entry)/entry = {k: v for k, v in entry.items() if v is not None or k == "error"}/' "$FILE_PATH"
+    echo "Patching objects.py to add keep_keys parameter to dict_filter_bool."
 
-    echo "db_media.py has been successfully patched."
+    sed -i.bak '/def dict_filter_bool(/{
+        s/def dict_filter_bool(\(.*\))/def dict_filter_bool(\1, keep_keys=None):/
+        N;N;
+        s/if keep_0:.*{/{\
+        if keep_keys is None:\
+            keep_keys = set()\
+        \
+        if keep_0:\
+            filtered_dict = {k: v for k, v in kwargs.items() if (v is not None and v != "" and v is not False) or k in keep_keys}/
+    }' "$OBJECTS_PY"
 fi
+
+# Patch db_media.py to specify keep_keys=['error'] in the call to dict_filter_bool
+if grep -q "entry = objects.dict_filter_bool(entry, keep_keys=['error'])" "$DB_MEDIA_PY"; then
+    echo "db_media.py already patched. No changes necessary."
+else
+    echo "Patching db_media.py to specify keep_keys=['error'] when calling dict_filter_bool."
+
+    sed -i.bak "s/entry = objects\.dict_filter_bool(entry)/entry = objects.dict_filter_bool(entry, keep_keys=['error'])/" "$DB_MEDIA_PY"
+fi
+
+echo "Patching completed."
