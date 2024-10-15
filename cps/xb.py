@@ -20,9 +20,11 @@ class Media(Base):
         Index('idx_media_playlists_id', 'playlists_id'),
         Index('idx_media_size', 'size'),
         Index('idx_media_duration', 'duration'),
+        Index('idx_media_live_status', 'live_status'),
         Index('idx_media_time_created', 'time_created'),
         Index('idx_media_time_modified', 'time_modified'),
         Index('idx_media_time_downloaded', 'time_downloaded'),
+        Index('idx_media_time_uploaded', 'time_uploaded'),
         Index('idx_media_fps', 'fps'),
         Index('idx_media_view_count', 'view_count'),
         Index('idx_media_uploader', 'uploader'),
@@ -74,14 +76,14 @@ class Caption(Base):
         Index('idx_captions_time', 'time'),
     )
 
-    media_id = Column(Integer, ForeignKey('media.id'), primary_key=True)
-    time = Column(Integer, primary_key=True)
+    media_id = Column(Integer, ForeignKey('media.id'))
+    time = Column(Integer)
     text = Column(Text)
 
     media = relationship("Media", back_populates="captions")
 
     def __repr__(self):
-        return f"<Caption(media_id={self.media_id}, time={self.time}, text={self.text})>"
+        return f"<Caption(id={self.id}, media_id={self.media_id}, time={self.time}, text={self.text})>"
 
 class Playlists(Base):
     __tablename__ = 'playlists'
@@ -139,10 +141,12 @@ class XKLBDB:
         self.SessionFactory = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=True))
         self.session = self.SessionFactory()
 
-        if not os.path.exists(XKLB_DB_FILE):
-            print(f"Database file not found at {XKLB_DB_FILE}.")
-        else:
-            print(f"Database file found at {XKLB_DB_FILE}.")
+        # if not os.path.exists(XKLB_DB_FILE):
+        #     print(f"Database file not found at {XKLB_DB_FILE}, creating a new blank database.")
+        #     Base.metadata.create_all(self.engine)
+        #     print("New blank database created.")
+        # else:
+        #     print(f"Database file found at {XKLB_DB_FILE}.")
 
     def get_session(self):
         return self.session
