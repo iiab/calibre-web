@@ -22,6 +22,7 @@ if grep -q 'def dict_filter_bool(kwargs, keep_0=True, keep_keys=None)' "$OBJECTS
 else
     echo "Patching objects.py to add keep_keys parameter to dict_filter_bool."
 
+    # https://unix.stackexchange.com/questions/678998/how-can-backup-and-then-modify-a-file-with-sed
     sed -i.bak '/def dict_filter_bool(/{
         s/def dict_filter_bool(\(.*\))/def dict_filter_bool(\1, keep_keys=None)/
         N;N;
