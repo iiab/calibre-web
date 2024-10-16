@@ -30,16 +30,16 @@ class GlueDB:
         return cls._instance
 
     def _init_engine(self):
-        if not os.path.exists(MAPPING_DB_FILE):
-            log.info(f"Creating new glue database at {MAPPING_DB_FILE}")
-            open(MAPPING_DB_FILE, 'a').close()
         self.engine = create_engine(
             f'sqlite:///{MAPPING_DB_FILE}',
             echo=False,
             connect_args={'check_same_thread': False},
             poolclass=StaticPool
         )
-        Base.metadata.create_all(self.engine, checkfirst=True)
+        if not os.path.exists(MAPPING_DB_FILE):
+            log.info(f"Creating new glue database at {MAPPING_DB_FILE}")        
+            # Create all tables defined by Base's subclasses (MediaBooksMapping)
+            Base.metadata.create_all(self.engine, checkfirst=True)
 
     def _init_session_factory(self):
         self.SessionFactory = scoped_session(
