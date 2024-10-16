@@ -974,7 +974,7 @@ class CalibreDB:
     def get_search_results(self, term, config, offset=None, order=None, limit=None, *join):
         order = order[0] if order else [Books.sort]
         pagination = None
-        result = self.search_query(term, config, *join).order_by(*order).all
+        result = self.search_query(term, config, *join).order_by(*order).all()
         ub.store_combo_ids(result)
         searcher = CaptionSearcher()
         books_ids_from_captions = searcher.get_captions_search_results(term)
