@@ -155,7 +155,7 @@ class DatabaseService:
 
 class MappingService:
     """Service class for mapping operations."""
-    def __init__(self, session: Session):
+    def __init__(self):
         db = GlueDB()
         self.session = db.get_session()
 
@@ -209,6 +209,7 @@ class CaptionSearcher:
     def _query_database(self, term):
         """Executes a query on the xklb database and retrieves book_ids from iiab-glue.db."""
         captions = self.xklb_session.query(
+            # Caption.rowid,
             Caption.media_id,
             Caption.text,
             Caption.time
