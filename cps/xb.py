@@ -141,12 +141,10 @@ class XKLBDB:
         self.SessionFactory = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=True))
         self.session = self.SessionFactory()
 
-        # if not os.path.exists(XKLB_DB_FILE):
-        #     print(f"Database file not found at {XKLB_DB_FILE}, creating a new blank database.")
-        #     Base.metadata.create_all(self.engine)
-        #     print("New blank database created.")
-        # else:
-        #     print(f"Database file found at {XKLB_DB_FILE}.")
+        if not os.path.exists(XKLB_DB_FILE):
+            print(f"Database file not found at {XKLB_DB_FILE}, creating a new blank database.")
+            Base.metadata.create_all(self.engine)
+            print("New blank database created.")
 
     def get_session(self):
         return self.session
