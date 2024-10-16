@@ -76,6 +76,7 @@ class Caption(Base):
         Index('idx_captions_time', 'time'),
     )
 
+    rowid = Column('rowid', Integer, primary_key=True)
     media_id = Column(Integer, ForeignKey('media.id'))
     time = Column(Integer)
     text = Column(Text)
@@ -83,7 +84,7 @@ class Caption(Base):
     media = relationship("Media", back_populates="captions")
 
     def __repr__(self):
-        return f"<Caption(id={self.id}, media_id={self.media_id}, time={self.time}, text={self.text})>"
+        return f"<Caption(rowid={self.rowid}, media_id={self.media_id}, time={self.time}, text={self.text})>"
 
 class Playlists(Base):
     __tablename__ = 'playlists'
