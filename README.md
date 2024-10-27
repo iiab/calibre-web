@@ -99,7 +99,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 ## Quick Start
 
-0. Read the NEW Install Instructions above for IIAB Calibre-Web!
+0. Read the [NEW Install Instructions](#installation) above for IIAB Calibre-Web!
 1. ~**Access Calibre-Web**: Open your browser and navigate to:~
    ```
    http://localhost:8083
@@ -131,7 +131,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 ## Docker Images
 
-IIAB Calibre-Web does not support Docker.
+[IIAB Calibre-Web](#installation) does not support Docker.
 
 ## Contributor Recognition
 
