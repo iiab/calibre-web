@@ -44,6 +44,7 @@ class TaskMetadataExtract(CalibreTask):
         try:
             p = execute_subprocess(subprocess_args)
             while p.poll() is None:
+                self.end_time = datetime.now()
                 line = p.stdout.readline()
                 if "[download] Downloading playlist:" in line:
                     self.is_playlist = True
@@ -148,7 +149,6 @@ class TaskMetadataExtract(CalibreTask):
         """Runs the metadata extraction task."""
         self.worker_thread = worker_thread
         log.info("Starting metadata extraction task for URL: %s", self.media_url)
-        self.start_time = datetime.now()
         self.stat = STAT_STARTED
         self.progress = 0
 
