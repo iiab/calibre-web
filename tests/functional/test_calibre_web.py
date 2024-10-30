@@ -9,51 +9,43 @@ from pytest_bdd import (
 
 import subprocess 
 from urllib.parse import urljoin
-#from selenium import webdriver
-#from webdriver_manager.chrome import ChromeDriverManager
-#from webdriver_manager.firefox import GeckoDriverManager
-#from selenium.webdriver.chrome.service import Service as ChromiumService
-#from webdriver_manager.core.os_manager import ChromeType
-#from selenium.webdriver.firefox.service import Service as FirefoxService
-
-#from selenium.webdriver.common.selenium_manager import SeleniumManager
+import time
 
 @pytest.fixture(scope='session')
 def splinter_headless():
     """Override splinter headless option."""
-    return True 
+    return True
 
 @pytest.fixture(scope='session')
 def splinter_webdriver():
     """Override splinter webdriver name."""
     return 'chrome'
 
+# Fixture to save information to use through steps
+@pytest.fixture
+def step_context():
+    return {}
+
 @scenario('iiab/calibre-web.feature', 'Calibre web website should be available')
-def test_calibre_web_website_should_be_availabile():
+def test_calibre_web_website_should_be_available():
     """Calibre web website should be available."""
 
 @given('IIAB is running')
-def _():
+def _(step_context):
     """IIAB is running."""
-    result = subprocess.run(['multipass', 'info', 'box'], capture_output=True, text=True)
-    print("*****")
-    print(result.stdout)
-    print("*****")
-    #os.system("multipass info box")
+    # Extract IP address from Multipass 
+    result = subprocess.run(['multipass', 'exec', 'box', '--', 'hostname', '-I'], capture_output=True, text=True)
+    ip_address = str(result.stdout).strip("\r\n ")
+    step_context['ip_address'] = ip_address
 
 @when('I go to the calibre-web path')
-def navigate_to_calibre(browser):
+def navigate_to_calibre(browser, step_context):
     """I go to the calibre-web path."""
-    # Extract IP address from Multipass 
-    url = urljoin('http://10.26.33.118', '/books')
-    print("////")
-    print(url)
-    print("////")
+    url = urljoin("".join(['http://', str(step_context['ip_address'])]), '/books')
     browser.visit(url)
 
-
 @then('I should not see the error message')
-def _():
+def _(step_context):
     """I should not see the error message."""
     #raise NotImplementedError
 
@@ -64,8 +56,8 @@ def calibre_web_homepage(browser):
     print("!!!!!!!")
     print(browser.title)
     print(browser.url)
-    print(browser.html)
     print("!!!!!!!")
+    time.sleep(5)
     assert browser.is_text_present('Books'), 'Book test'
  
 
