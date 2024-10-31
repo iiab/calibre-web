@@ -15,6 +15,11 @@ jobs:
       - name: "Install multipass"
         run: |
           sudo snap install multipass
+      - name: "Debug multipass"
+        run: |
+          ls -l /var/snap/multipass/common/multipass_socket
+          groups | grep sudo
+          snap info multipass
       - name: "Running multipass box"
         run: |
           multipass launch 24.10 -c 2 -m 2G -d 20G -n box --cloud-init scripts/omg.yml 
