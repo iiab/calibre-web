@@ -14,7 +14,7 @@ jobs:
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
       - name: "Install multipass"
         run: |
-          snap install multipass
+          sudo snap install multipass
       - name: "Running multipass box"
         run: |
           multipass launch 24.10 -c 2 -m 2G -d 20G -n box --cloud-init scripts/omg.yml 
