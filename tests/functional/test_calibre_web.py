@@ -57,7 +57,6 @@ def calibre_web_homepage(browser):
     print(browser.title)
     print(browser.url)
     print("!!!!!!!")
-    time.sleep(5)
     assert browser.is_text_present('Books'), 'Book test'
  
 

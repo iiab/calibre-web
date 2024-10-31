@@ -1,0 +1,24 @@
+name: Integration tests for IIAB
+run-name: IIAB integration testing
+on: [push]
+jobs:
+  iiab-integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Executing IIAB tests"
+      - run: echo "🐧 This job is now running on a ${{ runner.os }} server hosted by GitHub!"
+      - run: echo "🔎 The name of your branch is ${{ github.ref }} and your repository is ${{ github.repository }}."
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - run: echo "🖥️ The workflow is now ready to test your code on the runner."
+      - name: "Running multipass box"
+        run: |
+          multipass launch 24.10 -c 2 -m 2G -d 20G -n box --cloud-init scripts/omg.yml 
+      - name: Install Python dependencies
+        uses: py-actions/py-dependency-install@v4
+        with:
+          path: "integration-tests-requirements.txt"
+      - name: Execute PyTest for Integration Tests 
+        run: |
+          pytest -s
