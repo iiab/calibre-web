@@ -273,7 +273,8 @@ def video_metadata(tmp_file_path, original_file_name, original_file_extension):
         video_id = original_file_name.split('[')[1].split(']')[0]
 
         # Ensure session is initialized from xb.py
-        session = XKLBDB().get_session()
+        db_instance = XKLBDB()
+        session = db_instance.get_session()
         if not session:
             log.error("Failed to initialize SQLAlchemy session")
             return None
@@ -343,6 +344,9 @@ def video_metadata(tmp_file_path, original_file_name, original_file_extension):
             log.error(f"Error fetching video metadata: {e}")
             generate_video_cover(tmp_file_path)
             return image_metadata(tmp_file_path, original_file_name, original_file_extension)
+        finally:
+            session.close()
+            db_instance.remove_session()
 
     else:
         generate_video_cover(tmp_file_path)
