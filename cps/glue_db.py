@@ -45,15 +45,15 @@ class GlueDB:
         self.SessionFactory = scoped_session(
             sessionmaker(bind=self.engine, autocommit=False, autoflush=True)
         )
-        self.session = self.SessionFactory()
 
+    def remove_session(self):
+        self.SessionFactory.remove()
+    
     def get_session(self):
-        return self.session
+        return self.SessionFactory()
 
     def dispose(self):
-        if self.session:
-            self.session.close()
-            self.SessionFactory.remove()
+        self.SessionFactory.remove()
         if self.engine:
             self.engine.dispose()
         GlueDB._instance = None
