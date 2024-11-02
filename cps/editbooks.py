@@ -306,6 +306,9 @@ def meta():
                 ),
                 category="error",
             )
+        finally:
+            MappingService().session.close()
+            MappingService().db.remove_session()
 
         new_book_path = os.path.join(config.config_calibre_dir, book_path)
         resp = {"file_downloaded": link, "shelf_id": shelf_id, "new_book_path": new_book_path}
