@@ -197,6 +197,8 @@ class TaskMetadataExtract(CalibreTask):
             log.error("An error occurred during the metadata extraction task: %s", e)
             self.message = f"{self.media_url_link} failed: {e}"
             self.stat = STAT_FAIL
+        finally:
+            self.db_service.close_session()
 
     def _handle_no_requested_urls(self):
         """Handles the case when no requested URLs are found."""
