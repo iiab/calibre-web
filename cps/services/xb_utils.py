@@ -38,8 +38,8 @@ class DatabaseService:
     """Service class for database operations."""
 
     def __init__(self, session: Session):
-        db = XKLBDB()
-        self.session = db.get_session()
+        self.db = XKLBDB()
+        self.session = self.db.get_session()
 
     def remove_shorts_from_db(self):
         """Deletes media entries where the path contains 'shorts'."""
@@ -77,8 +77,8 @@ class DatabaseService:
         """Calculates views per day for each requested URL."""
         log.debug("Calculating views per day for requested URLs.")
         now = datetime.now()
-        for requested_url in list(requested_urls.keys()):
-            try:
+        try:
+            for requested_url in list(requested_urls.keys()):
                 media_entry = self.session.query(Media).filter(Media.path == requested_url).first()
                 if media_entry and media_entry.view_count and media_entry.time_uploaded:
                     view_count = media_entry.view_count
@@ -89,10 +89,10 @@ class DatabaseService:
                     # If data is missing, remove the URL from requested_urls
                     requested_urls.pop(requested_url)
                     log.warning("Removed URL %s due to missing data.", requested_url)
-            except Exception as e:
-                log.error("An error occurred during calculation for %s: %s", requested_url, e)
-                requested_urls.pop(requested_url)
-        log.info("Views per day calculated for requested URLs.")
+            log.info("Views per day calculated for requested URLs.")
+        except Exception as e:
+            log.error("An error occurred during calculation for %s: %s", requested_url, e)
+            requested_urls.pop(requested_url)
 
     def update_playlist_path(self, media_url):
         """Updates the playlist path with a timestamp."""
@@ -153,10 +153,15 @@ class DatabaseService:
             log.error("An error occurred while deleting media and captions: %s", e)
             raise
 
+    def close_session(self):
+        self.session.close()
+        self.db.remove_session()
+
 class MappingService:
     """Service class for mapping operations."""
     def __init__(self):
         db = GlueDB()
+        self.db = db
         self.session = db.get_session()
 
     def add_book_media_mapping(self, media_id, book_id):
@@ -171,6 +176,9 @@ class MappingService:
             self.session.rollback()
             log.error("An error occurred while adding mapping: %s", e)
             raise
+        finally:
+            self.session.close()
+            self.db.remove_session()
 
     def get_mapping(self, media_id):
         """Gets the mapping for the given media_id."""
@@ -185,6 +193,9 @@ class MappingService:
         except Exception as e:
             log.error("An error occurred while getting mapping: %s", e)
             raise
+        finally:
+            self.session.close()
+            self.db.remove_session()
 
     def update_mapping(self, media_id, book_id):
         """Updates the mapping for the given media_id."""
@@ -200,42 +211,56 @@ class MappingService:
             self.session.rollback()
             log.error("An error occurred while updating mapping: %s", e)
             raise
+        finally:
+            self.session.close()
+            self.db.remove_session()
 
 class CaptionSearcher:
     def __init__(self):
-        self.xklb_session = XKLBDB().get_session()
-        self.glue_session = GlueDB().get_session()
+        self.xklb_db = XKLBDB()
+        self.glue_db = GlueDB()
 
     def _query_database(self, term):
         """Executes a query on the xklb database and retrieves book_ids from iiab-glue.db."""
-        captions = self.xklb_session.query(
-            # Caption.rowid,
-            Caption.media_id,
-            Caption.text,
-            Caption.time
-        ).filter(Caption.text.like(f'%{term}%')).all()
+        xklb_session = self.xklb_db.get_session()
+        glue_session = self.glue_db.get_session()
+        try:
+            captions = xklb_session.query(
+                # Caption.rowid,
+                Caption.media_id,
+                Caption.text,
+                Caption.time
+            ).filter(Caption.text.like(f'%{term}%')).all()
 
-        media_ids = [caption[0] for caption in captions]
+            media_ids = [caption[0] for caption in captions]
 
-        # Get corresponding book_ids from the glue database
-        mappings = self.glue_session.query(MediaBooksMapping).filter(
-            MediaBooksMapping.media_id.in_(media_ids)
-        ).all()
-        media_id_to_book_id = {mapping.media_id: mapping.book_id for mapping in mappings}
+            # Get corresponding book_ids from the glue database
+            mappings = glue_session.query(MediaBooksMapping).filter(
+                MediaBooksMapping.media_id.in_(media_ids)
+            ).all()
+            media_id_to_book_id = {mapping.media_id: mapping.book_id for mapping in mappings}
 
-        # Combine captions with book_ids
-        captions_list = []
-        for caption in captions:
-            media_id = caption[0]
-            book_id = media_id_to_book_id.get(media_id)
-            if book_id:
-                captions_list.append({
-                    'book_id': book_id,
-                    'text': caption[1],
-                    'time': caption[2]
-                })
+            # Combine captions with book_ids
+            captions_list = []
+            for caption in captions:
+                media_id = caption[0]
+                book_id = media_id_to_book_id.get(media_id)
+                if book_id:
+                    captions_list.append({
+                        'book_id': book_id,
+                        'text': caption[1],
+                        'time': caption[2]
+                    })
 
-        return captions_list
+            return captions_list
+        except Exception as e:
+            log.error("An error occured during caption search: %s", e)
+            raise
+        finally:
+            xklb_session.close()
+            glue_session.close()
+            self.xklb_db.remove_session()
+            self.glue_db.remove_session()
 
     def _merge_captions(self, captions):
         """Merges overlapping captions for the same book_id."""
