@@ -174,6 +174,8 @@ class TaskDownload(CalibreTask):
             log.error("An error occurred during post-download operations: %s", e)
             self.message = f"{self.media_url_link} failed to download: {e}"
             self.stat = STAT_FAIL
+        finally:
+            self.db_service.close_session()
 
     def _handle_no_path(self, media_entry):
         """Handles the case when no path is found in the media entry."""
