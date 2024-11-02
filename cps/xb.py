@@ -140,7 +140,6 @@ class XKLBDB:
 
     def _init_session_factory(self):
         self.SessionFactory = scoped_session(sessionmaker(bind=self.engine, autocommit=False, autoflush=True))
-        self.session = self.SessionFactory()
 
         if not os.path.exists(XKLB_DB_FILE):
             print(f"Database file not found at {XKLB_DB_FILE}, creating a new blank database.")
@@ -148,21 +147,13 @@ class XKLBDB:
             print("New blank database created.")
 
     def get_session(self):
-        return self.session
+        return self.SessionFactory()
 
-    def session_commit(self, success=None):
-        try:
-            self.session.commit()
-            if success:
-                log.info(success)
-        except (exc.OperationalError, exc.InvalidRequestError) as e:
-            self.session.rollback()
-            log.error(f"Commit failed: {e}")
+    def remove_session(self):
+        self.SessionFactory.remove()
 
     def dispose(self):
-        if self.session:
-            self.session.close()
-            self.SessionFactory.remove()
+        self.SessionFactory.remove()
         if self.engine:
             self.engine.dispose()
         XKLBDB._instance = None
