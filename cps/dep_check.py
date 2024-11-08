@@ -39,11 +39,17 @@ def load_dependencies(optional=False):
             with open(req_path, 'r') as f:
                 for line in f:
                     if not line.startswith('#') and not line == '\n' and not line.startswith('git'):
-                        res = re.match(r'(.*?)([<=>\s]+)([\d\.]+),?\s?([<=>\s]+)?([\d\.]+)?', line.strip())
+                        res = re.match(r'(.*?)([<=>\s]+)([\d\.]+),?\s?([<=>\s]+)?([\d\.]+)?'
+                                       r'(?:;python_version([<=>\s]+)\'([\d\.]+)\')?', line.strip())
                         try:
                             if getattr(sys, 'frozen', False):
                                 dep_version = exe_deps[res.group(1).lower().replace('_', '-')]
                             else:
+                                if res.group(6) and res.group(7):
+                                    val = res.group(7).split(".")
+                                    if not eval(str(sys.version_info[0]) + "." + "{:02d}".format(sys.version_info[1]) +
+                                                res.group(6) + val[0] + "." + "{:02d}".format(int(val[1]))):                                    
+                                        continue
                                 if importlib:
                                     dep_version = version(res.group(1))
                                 else:
@@ -63,7 +69,7 @@ def dependency_check(optional=False):
     deps = load_dependencies(optional)
     for dep in deps:
         try:
-            dep_version_int = [int(x) if x.isnumeric() else 0 for x in dep[0].split('.')]
+            dep_version_int = [int(x) if x.isnumeric() else 0 for x in dep[0].split('.')[:3]]
             low_check = [int(x) for x in dep[3].split('.')]
             high_check = [int(x) for x in dep[5].split('.')]
         except AttributeError:
