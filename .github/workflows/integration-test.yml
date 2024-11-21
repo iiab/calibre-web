@@ -33,4 +33,4 @@ jobs:
           path: "integration-tests-requirements.txt"
       - name: Execute PyTest for Integration Tests 
         run: |
-          pytest -s
+          HEADLESS=true pytest -s
