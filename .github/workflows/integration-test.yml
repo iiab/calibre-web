@@ -11,6 +11,8 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - run: echo "💡 The ${{ github.repository }} repository has been cloned to the runner."
+      - uses: browser-actions/setup-chrome@v1
+      - run: chrome --version
       - run: echo "🖥️ The workflow is now ready to test your code on the runner."
       - name: "Create python environment"
         run: |
@@ -27,6 +29,9 @@ jobs:
       - name: "Execute calibre web in background"
         run: |
           nohup python3 cps.py & 
+      - name: "Verify local website"
+        run: |
+          curl localhost:8083
       - name: Install Python dependencies for testing
         uses: py-actions/py-dependency-install@v4
         with:
