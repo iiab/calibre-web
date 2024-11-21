@@ -7,6 +7,7 @@ from pytest_bdd import (
     when,
 )
 
+import os
 import subprocess 
 from urllib.parse import urljoin
 import time
@@ -14,7 +15,10 @@ import time
 @pytest.fixture(scope='session')
 def splinter_headless():
     """Override splinter headless option."""
-    return False 
+    if os.environ['HEADLESS'] == "true":
+        return True
+    else:
+        return False 
 
 @pytest.fixture(scope='session')
 def splinter_webdriver():
@@ -47,7 +51,6 @@ def _(browser, step_context):
 @then('I should not see the error message')
 def _(step_context):
     """I should not see the error message."""
-    time.sleep(5)
 
 @then('see homepage information')
 def _(browser):
@@ -85,7 +88,6 @@ def _(browser, step_context):
 def _(browser, step_context):
     """I should see the success message."""
     assert browser.is_text_present('You are now logged in as:'), 'Login successful'
-    time.sleep(5)
 
 @then('see the information for logged users')
 def _(browser):
