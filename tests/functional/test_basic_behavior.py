@@ -49,7 +49,7 @@ def _(browser, step_context):
 
 
 @then('I should not see the error message')
-def _(step_context):
+def _(browser, step_context):
     """I should not see the error message."""
 
 @then('see homepage information')
@@ -62,7 +62,7 @@ def _(browser):
     assert browser.is_text_present('Books'), 'Book test'
 
 @scenario('basic_behavior.feature', 'Login')
-def test_home_page():
+def test_login():
     """Login."""
 
 
