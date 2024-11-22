@@ -26,12 +26,15 @@ jobs:
         run: |
           mkdir config
           wget  -O config/app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
+      - name: "Debugging line"
+        run: |
+          ls -la 
       - name: "Execute calibre web in background"
         run: |
           nohup python3 cps.py & 
       - name: "Verify local website"
         run: |
-          curl localhost:8083
+          curl -L localhost:8083
       - name: Install Python dependencies for testing
         uses: py-actions/py-dependency-install@v4
         with:
