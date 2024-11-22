@@ -25,7 +25,7 @@ jobs:
       - name: "Download dummy database"
         run: |
           mkdir config
-          wget  -O config/app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
+          wget  -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
       - name: "Debugging line"
         run: |
           ls -la 
