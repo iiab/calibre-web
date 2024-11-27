@@ -104,6 +104,52 @@ Internet-in-a-Box does not support Docker.
 
 We would like to thank all the [contributors](https://github.com/janeczku/calibre-web/graphs/contributors) and maintainers of Calibre-Web for their valuable input and dedication to the project. Your contributions are greatly appreciated.
 
+## Running integration tests
+
+Integration tests were added to this project, follow the steps below to set up and execute the integration tests:
+
+### Prerequisites
+
+1. **Install dependencies**:
+   Ensure you have all required dependencies installed. Use the following commands:
+
+   ```bash
+   python3 -m venv calibre-web-env
+   source calibre-web-env/bin/activate
+   pip install -r requirements.txt
+   ```
+
+1. Add the dummy database from IIAB project:
+   ```bash
+   wget  -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
+   ```
+
+1. Execute calibre web in background:
+   ```bash
+   nohup python3 cps.py &
+   ```
+
+1. Install tests requirements:
+
+   ```bash
+   pip install -r integration-tests-requirements.txt
+   ```
+
+1. Execute the tests:
+
+   If you want to watch the execution process, and the interaction with the browser:
+
+   ```
+   HEADLESS=false pytest -s
+   ```
+
+   And you can just run headless:
+
+   ```
+   HEADLESS=false pytest -s
+   ```
+
+
 ## Contact
 
 Join us on [Discord](https://discord.gg/h2VsJ2NEfB)

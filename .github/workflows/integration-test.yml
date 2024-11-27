@@ -24,7 +24,6 @@ jobs:
           path: "requirements.txt"
       - name: "Download dummy database"
         run: |
-          mkdir config
           wget  -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
       - name: "Debugging line"
         run: |
