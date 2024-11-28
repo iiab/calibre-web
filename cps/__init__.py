@@ -32,6 +32,7 @@ from flask_principal import Principal
 from . import logger
 from .cli import CliParameter
 from .reverseproxy import ReverseProxied
+from .subproc_wrapper import process_open
 from .server import WebServer
 from .dep_check import dependency_check
 from .updater import Updater
@@ -149,6 +150,12 @@ def create_app():
     db.CalibreDB.update_config(config)
     db.CalibreDB.setup_db(config.config_calibre_dir, cli_param.settings_path)
     calibre_db.init_db()
+
+    XKLB_PATCH = os.getenv('XKLB_PATCH', 'xklb-patch')
+    p = process_open([XKLB_PATCH], newlines=True)
+    while p.poll is None:
+        log.info(p.stdout.readline())
+    p.wait()
 
     updater_thread.init_updater(config, web_server)
     # Perform dry run of updater and exit afterward
