@@ -28,7 +28,7 @@ from shutil import copyfile, move
 from markupsafe import escape, Markup  # dependency of flask
 from functools import wraps
 
-from flask import Blueprint, request, flash, redirect, url_for, abort, Response, jsonify
+from flask import Blueprint, request, flash, redirect, url_for, abort, jsonify, make_response, Response
 from flask_babel import gettext as _
 from flask_babel import lazy_gettext as N_
 from flask_babel import get_locale
