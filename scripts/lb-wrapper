@@ -1,15 +1,15 @@
 #!/bin/bash
 
-XKLB_INTERNAL_CMD="$1"    # e.g. "tubeadd" or "dl" or "search"
+LIBRARY_INTERNAL_CMD="$1"    # e.g. "tubeadd" or "dl" or "search"
 URL_OR_SEARCH_TERM="$2"
 
-LOG_FILE="/var/log/xklb.log"
-XKLB_DB_FILE="/library/calibre-web/xklb-metadata.db"
+LOG_FILE="/var/log/library.log"
+LIBRARY_DB_FILE="/library/calibre-web/library-metadata.db"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
 # outtmpl explanation:
 # https://github.com/yt-dlp/yt-dlp#output-template
-# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L385-L388
-# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L508-L523
+# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/library/createdb/tube_backend.py#L385-L388
+# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/library/createdb/tube_backend.py#L508-L523
 # /library/downloads/calibre-web/                                                                         (TMP_DOWNLOADS_DIR)
 # └── Youtube                                                                                             (extractor)
 #     └── TED-Ed                                                                                          (uploader_id)
@@ -58,12 +58,12 @@ fi
 # already begin with http:// or https://              (Test below means well,
 # enforcing much the same and with logging, but let's avoid duplicate code!)
 # if [[ ! ${URL} =~ ^http[s]?:// ]]; then
-#     log 'Invalid URL: xklb commands require URLs begin with "http://" or "https://"'
+#     log 'Invalid URL: library commands require URLs begin with "http://" or "https://"'
 #     exit 1
 # fi
 
 if ! command -v "lb"; then
-    log "Error" "xklb could not be found. Please install xklb and try again."
+    log "Error" "library could not be found. Please install library and try again."
     exit 1
 fi
 
@@ -78,26 +78,26 @@ log "Info" "Using yt-dlp $(yt-dlp --version)"
 # @deldesir Responded: "For listing requested files after tubeadd is done
 # fetching metadata. This will prevent hanging for playlist URLs or short URLs.
 # "...to be able to list videos that are not downloaded yet"
-if [[ $XKLB_INTERNAL_CMD == "tubeadd" ]]; then
-    xklb_full_cmd="lb tubeadd '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${VERBOSITY}"
-elif [[ $XKLB_INTERNAL_CMD == "dl" ]]; then
-    xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' ${FORMAT_OPTIONS} --write-thumbnail --subs --live --live-from-start -o '${OUTTMPL}' ${VERBOSITY}"
-elif [[ $XKLB_INTERNAL_CMD == "search" ]]; then
-    xklb_full_cmd="lb search '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}'"
+if [[ $LIBRARY_INTERNAL_CMD == "tubeadd" ]]; then
+    library_full_cmd="lb tubeadd '${LIBRARY_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${VERBOSITY}"
+elif [[ $LIBRARY_INTERNAL_CMD == "dl" ]]; then
+    library_full_cmd="lb dl '${LIBRARY_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' ${FORMAT_OPTIONS} --write-thumbnail --subs --live --live-from-start -o '${OUTTMPL}' ${VERBOSITY}"
+elif [[ $LIBRARY_INTERNAL_CMD == "search" ]]; then
+    library_full_cmd="lb search '${LIBRARY_DB_FILE}' '${URL_OR_SEARCH_TERM}'"
 else
-    log "Error" "Invalid xklb command. Please use 'tubeadd', 'dl' or 'search'."
+    log "Error" "Invalid library command. Please use 'tubeadd', 'dl' or 'search'."
     exit 1
 fi
 
-log "Info" "Running xklb command: ${xklb_full_cmd}"
+log "Info" "Running library command: ${library_full_cmd}"
 
 # >(...) "process substitution" explained at https://unix.stackexchange.com/a/324170
 # 1>&2 redirect back-to-STDERR to avoid nested (repeat) logging, explained at https://stackoverflow.com/a/15936384
-eval "${xklb_full_cmd}" \
+eval "${library_full_cmd}" \
     > >(while read -r line; do if match_pattern "$line"; then echo "$line"; else log "Info" "$line"; fi; done) \
     2> >(while read -r line; do if match_pattern "$line"; then echo "$line"; else log "Debug" "$line" 1>&2; fi; done) &
 # 2024-01-11: HOW THIS WORKS...
-# 0) xklb sends a flood of yt-dlp status message lines like "downloading  59.8%    2.29MiB/s" to STDERR.
+# 0) library sends a flood of yt-dlp status message lines like "downloading  59.8%    2.29MiB/s" to STDERR.
 # 1) Then, "2> >(...)" reroutes (only those raw lines!) to STDIN, instead of logging them (as "Debug" lines).
 # 2) Then, upon receiving them at STDIN, "> >(...)" again prevents (only those raw lines!) from being logged (as "Info" messages).
 # 3) Then, cps/tasks/download.py uses an equivalent Python REGEX to flag (only these raw lines! yes a 3rd time!)
@@ -112,8 +112,8 @@ rc=$?
 
 # Check return code (exit status)
 if [ $rc -eq 0 ]; then
-    log "Info" "lb-wrapper's xklb command (${XKLB_INTERNAL_CMD}) completed successfully."
+    log "Info" "lb-wrapper's library command (${LIBRARY_INTERNAL_CMD}) completed successfully."
 else
-    log "Error" "Error $rc occurred while running lb-wrapper's xklb commands."
+    log "Error" "Error $rc occurred while running lb-wrapper's library commands."
     exit $rc
 fi
