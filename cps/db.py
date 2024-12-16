@@ -49,6 +49,7 @@ from flask import flash, g, Flask
 
 from . import logger, ub, isoLanguages
 from .pagination import Pagination
+from .services.xb_utils import CaptionSearcher
 from .string_helper import strip_whitespaces
 
 log = logger.create()
@@ -888,20 +889,20 @@ class CalibreDB:
     def order_authors(self, entries, list_return=False, combined=False):
         for entry in entries:
             if combined:
-                sort_authors = entry.Books.author_sort.split('&')
-                ids = [a.id for a in entry.Books.authors]
-
+                book = entry.Books
+                sort_authors = book.author_sort.split('&')
+                ids = [a.id for a in book.authors]
             else:
                 sort_authors = entry.author_sort.split('&')
                 ids = [a.id for a in entry.authors]
-            authors_ordered = list()
+            authors_ordered = []
             # error = False
             for auth in sort_authors:
                 auth = strip_whitespaces(auth)
                 results = self.session.query(Authors).filter(Authors.sort == auth).all()
                 # ToDo: How to handle not found author name
-                if not len(results):
-                    log.error("Author {} not found to display name in right order".format(auth))
+                if not results:
+                    log.error(f"Author {auth} not found to display name in right order")
                     # error = True
                     break
                 for r in results:
@@ -911,10 +912,9 @@ class CalibreDB:
             for author_id in ids:
                 result = self.session.query(Authors).filter(Authors.id == author_id).first()
                 authors_ordered.append(result)
-
             if list_return:
                 if combined:
-                    entry.Books.authors = authors_ordered
+                    book.authors = authors_ordered
                 else:
                     entry.ordered_authors = authors_ordered
             else:
@@ -990,12 +990,41 @@ class CalibreDB:
 
         return cc
 
+    def get_books_by_ids(self, book_ids):
+        books = self.session.query(Books).filter(Books.id.in_(book_ids)).all()
+        return [EntryWrapper(book) for book in books]
+    
     # read search results from calibre-database and return it (function is used for feed and simple search
     def get_search_results(self, term, config, offset=None, order=None, limit=None, *join):
         order = order[0] if order else [Books.sort]
         pagination = None
-        result = self.search_query(term, config, *join).order_by(*order).all()
+
+        # get result from search_query
+        raw_result = self.search_query(term, config, *join).order_by(*order).all()
+        ub.store_combo_ids(raw_result)
+
+        # wrap each entry in EntryWrapper
+        wrapped_result = []
+        for res in raw_result:
+            book = res[0]
+            is_archived = res[1] if len(res) > 1 else None
+            read_status = res[2] if len(res) > 2 else None
+            wrapped_result.append(EntryWrapper(book, is_archived, read_status))
+
+        # get books from captions
+        searcher = CaptionSearcher()
+        books_ids_from_captions = searcher.get_captions_search_results(term)
+        additional_entries = self.get_books_by_ids(books_ids_from_captions)
+        combined_result = wrapped_result + additional_entries
+
+        unique_books = {}
+        for entry in combined_result:
+            book = entry.Books
+            if book.id not in unique_books:
+                unique_books[book.id] = entry
+        result = list(unique_books.values())
         result_count = len(result)
+
         if offset is not None and limit is not None:
             offset = int(offset)
             limit_all = offset + int(limit)
@@ -1004,10 +1033,9 @@ class CalibreDB:
             offset = 0
             limit_all = result_count
 
-        ub.store_combo_ids(result)
         entries = self.order_authors(result[offset:limit_all], list_return=True, combined=True)
-
         return entries, result_count, pagination
+
 
     # Creates for all stored languages a translated speaking name in the array for the UI
     def speaking_language(self, languages=None, return_all_languages=False, with_count=False, reverse_order=False):
@@ -1095,3 +1123,9 @@ class Category:
         self.id = cat_id
         self.rating = rating
         self.count = 1
+
+class EntryWrapper:
+    def __init__(self, Books, is_archived=None, read_status=None):
+        self.Books = Books
+        self.is_archived = is_archived
+        self.read_status = read_status
