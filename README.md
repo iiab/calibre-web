@@ -178,7 +178,7 @@ Integration tests were added to this project, follow the steps below to set up a
    And you can just run headless:
 
    ```
-   HEADLESS=false pytest -s
+   HEADLESS=true pytest -s
    ```
 
 
