@@ -25,9 +25,9 @@ def splinter_webdriver():
     """Override splinter webdriver name."""
     return 'chrome'
 
-# Fixture to save information to use through steps
 @pytest.fixture
 def step_context():
+    """Fixture to save information to use through steps."""
     return {}
 
 @scenario('basic_behavior.feature', 'Home Page')
@@ -92,5 +92,5 @@ def _(browser, step_context):
 @then('see the information for logged users')
 def _(browser):
     """see the information for logged users"""
-    assert browser.is_text_present('Books'), 'Book test'
+    assert browser.is_text_present('Books'), 'Expected "Books" text to be visible on the home page' 
     assert browser.is_text_present('Download to IIAB'), 'IIAB button'
