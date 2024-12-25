@@ -93,4 +93,4 @@ def _(browser, step_context):
 def _(browser):
     """see the information for logged users"""
     assert browser.is_text_present('Books'), 'Expected "Books" text to be visible on the home page' 
-    assert browser.is_text_present('Download to IIAB'), 'IIAB button'
+    assert browser.is_text_present('Download to IIAB'), 'Expected "Download to IIAB" button for logged users' 
