@@ -1559,7 +1559,7 @@ msgstr "Descarga video(s) de aprendizaje a tu Internet-in-a-box"
 
 #: cps/templates/modal_dialogs.html:162
 msgid "Enter URL"
-msgstr "Ingresa la URL"
+msgstr "Ingresar URL"
 
 #: cps/templates/admin.html:9
 msgid "Users"
