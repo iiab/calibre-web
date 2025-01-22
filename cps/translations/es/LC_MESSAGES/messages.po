@@ -1553,6 +1553,14 @@ msgstr "Subir archivo"
 msgid "Download to IIAB"
 msgstr "Descargar a IIAB"
 
+#: cps/templates/modal_dialogs.html:151
+msgid "Download learning video(s) to your Internet-in-a-Box"
+msgstr "Descarga video(s) de aprendizaje a tu Internet-in-a-box"
+
+#: cps/templates/modal_dialogs.html:162
+msgid "Enter URL"
+msgstr "Ingresa la URL"
+
 #: cps/templates/admin.html:9
 msgid "Users"
 msgstr "Usuarios"
