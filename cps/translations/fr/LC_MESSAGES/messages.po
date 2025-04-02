@@ -1614,14 +1614,6 @@ msgstr "Téléverser"
 msgid "Download to IIAB"
 msgstr "Télécharger dans IIAB"
 
-#: cps/templates/modal_dialogs.html:151
-msgid "Download learning video(s) to your Internet-in-a-Box"
-msgstr "Téléchargez des vidéos éducatives dans votre Internet-in-a-Box"
-
-#: cps/templates/modal_dialogs.html:162
-msgid "Enter URL"
-msgstr "Saisir l'URL"
-
 #: cps/templates/admin.html:9
 msgid "Users"
 msgstr "Liste des utilisateurs"
