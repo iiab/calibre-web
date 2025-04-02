@@ -1549,10 +1549,6 @@ msgstr "Borrando la caché de miniaturas de portada"
 msgid "Upload"
 msgstr "Subir archivo"
 
-#: cps/templates/layout.html:92
-msgid "Download to IIAB"
-msgstr "Descargar a IIAB"
-
 #: cps/templates/admin.html:9
 msgid "Users"
 msgstr "Usuarios"
