@@ -1610,10 +1610,6 @@ msgstr ""
 msgid "Upload"
 msgstr "Téléverser"
 
-#: cps/templates/layout.html:92
-msgid "Download to IIAB"
-msgstr "Télécharger dans IIAB"
-
 #: cps/templates/admin.html:9
 msgid "Users"
 msgstr "Liste des utilisateurs"
