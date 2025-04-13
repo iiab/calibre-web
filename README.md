@@ -141,7 +141,9 @@ We would like to thank all the [contributors](https://github.com/janeczku/calibr
 Integration tests were added to this project, follow the steps below to set up and execute the integration tests:
 
 ### Prerequisites
-
+1. **Install Chrome to enable Selenium testing**:
+   e.g., Follow the instructions on this page to install Chrome for Ubuntu: https://linuxcapable.com/install-google-chrome-on-ubuntu-linux/
+   
 1. **Install dependencies**:
    Ensure you have all required dependencies installed. Use the following commands:
 
