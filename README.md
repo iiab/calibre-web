@@ -159,18 +159,18 @@ Integration tests were added to this project, follow the steps below to set up a
    wget  -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
    ```
 
-1. Execute calibre web in background:
+1. Execute calibre web in background (NB: you must have two separate terminal windows open, one for running Calibre-Web in the background and one for tests):
    ```bash
    nohup python3 cps.py &
    ```
 
-1. Install tests requirements:
+1. Install tests requirements (NB: Open a separate terminal window, activate the Calibre-Web venv, and continue with the below steps):
 
    ```bash
    pip install -r integration-tests-requirements.txt
    ```
 
-1. Execute the tests:
+1. Execute the tests (NB: you must run the tests as a non-root user):
 
    If you want to watch the execution process, and the interaction with the browser:
 
