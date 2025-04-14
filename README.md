@@ -142,32 +142,50 @@ Integration tests were added to this project, follow the steps below to set up a
 
 ### Prerequisites
 
-1. **Install dependencies**:
-   Ensure you have all required dependencies installed. Use the following commands:
+1. **Install Chrome and/or Firefox to enable Selenium testing**:
+
+   Follow the instructions on this page to [install Chrome for Ubuntu](https://linuxcapable.com/install-google-chrome-on-ubuntu-linux/)
+
+   For Firefox, follow these [instructions](https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended)
+
+   **Note: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail**
+
+**Note: Please run the remaining commands as a non-root user**
+2. **Install dependencies**:
+   Ensure you have all required dependencies installed.
+
+   Then, set up the python virtual environment using the following commands:
 
    ```bash
+   cd /opt/iiab/calibre-web-py3    # cd into the directory where you have Calibre-Web cloned
    python3 -m venv calibre-web-env
    source calibre-web-env/bin/activate
    pip install -r requirements.txt
    ```
 
-1. Add the dummy database from IIAB project:
+4. Add the dummy database from IIAB project:
+
    ```bash
-   wget  -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
+   wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
    ```
 
-1. Execute calibre web in background:
+5. Execute Calibre-Web in background:
+
+   **Note: If you have installed Callibre-Web through IIAB, then this command is not required.**
+
    ```bash
    nohup python3 cps.py &
    ```
 
-1. Install tests requirements:
+6. Install tests requirements in the same virtual environment as step 3:
 
    ```bash
    pip install -r integration-tests-requirements.txt
    ```
 
-1. Execute the tests:
+7. Execute the tests:
+
+   **Note: You must run the tests as a non-root user**
 
    If you want to watch the execution process, and the interaction with the browser:
 
@@ -180,7 +198,6 @@ Integration tests were added to this project, follow the steps below to set up a
    ```
    HEADLESS=true pytest -s
    ```
-
 
 ## Contact
 
