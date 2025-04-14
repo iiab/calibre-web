@@ -146,7 +146,7 @@ Integration tests were added to this project, follow the steps below to set up a
 
     - [Install Chrome for Ubuntu](https://linuxcapable.com/install-google-chrome-on-ubuntu-linux/) and/or
 
-   For Firefox, follow these [instructions](https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended)
+    - [Install Firefox](https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended) [NB: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail]
 
    **Note: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail**
 
