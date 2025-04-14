@@ -149,7 +149,7 @@ Integration tests were added to this project, follow the steps below to set up a
    Ensure you have all required dependencies installed. Use the following commands:
 
    ```bash
-   cd /opt/iiab/calibre-web    # cd into the directory where you have Calibre-Web cloned
+   cd /opt/iiab/calibre-web-py3    # cd into the directory where you have Calibre-Web cloned
    python3 -m venv calibre-web-env
    source calibre-web-env/bin/activate
    pip install -r requirements.txt
