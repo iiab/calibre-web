@@ -20,11 +20,6 @@ def splinter_headless():
     else:
         return False
 
-@pytest.fixture(scope='session')
-def splinter_webdriver():
-    """Override splinter webdriver name."""
-    return 'firefox'
-
 @pytest.fixture
 def step_context():
     """Fixture to save information to use through steps."""
