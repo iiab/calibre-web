@@ -148,25 +148,24 @@ Integration tests were added to this project, follow the steps below to set up a
 
     - [Install Firefox](https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended) [NB: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail]
 
-   **Note: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail**
-
-**Note: Please run the remaining commands as a non-root user**\n
+**Note: Please run the remaining commands as a non-root user**
 
 2. **Install dependencies**:
 
    Set up the python virtual environment using the following commands:
 
    ```bash
-   cd /opt/iiab/calibre-web-py3    # cd into the directory where you have Calibre-Web cloned
+   cd /usr/local/calibre-web-py3   # cd into the directory where you have Calibre-Web cloned
    python3 -m venv calibre-web-env
    source calibre-web-env/bin/activate
    pip install -r requirements.txt
    ```
+   If Calibre-Web is installed by IIAB, then `/usr/local/calibre-web-py3` is the location of the repo.
 
 3. Add the dummy database from IIAB project:
 
    ```bash
-   wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
+   wget -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
    ```
 
 4. Execute Calibre-Web in background:
