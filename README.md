@@ -153,7 +153,6 @@ Integration tests were added to this project, follow the steps below to set up a
 **Note: Please run the remaining commands as a non-root user**\n
 
 2. **Install dependencies**:
-   Ensure you have all required dependencies installed.
 
    Set up the python virtual environment using the following commands:
 
