@@ -155,7 +155,7 @@ Integration tests were added to this project, follow the steps below to set up a
 2. **Install dependencies**:
    Ensure you have all required dependencies installed.
 
-   Then, set up the python virtual environment using the following commands:
+   Set up the python virtual environment using the following commands:
 
    ```bash
    cd /opt/iiab/calibre-web-py3    # cd into the directory where you have Calibre-Web cloned
