@@ -37,4 +37,4 @@ jobs:
       - name: Execute PyTest for Integration Tests
         run: |
           HEADLESS=true pytest -s --splinter-webdriver chrome
-          HEADLESS=true pytest -s --splinter-webdrive firefox
+          HEADLESS=true pytest -s --splinter-webdriver firefox
