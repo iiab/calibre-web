@@ -150,7 +150,8 @@ Integration tests were added to this project, follow the steps below to set up a
 
    **Note: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail**
 
-**Note: Please run the remaining commands as a non-root user**
+**Note: Please run the remaining commands as a non-root user**\n
+
 2. **Install dependencies**:
    Ensure you have all required dependencies installed.
 
@@ -163,13 +164,13 @@ Integration tests were added to this project, follow the steps below to set up a
    pip install -r requirements.txt
    ```
 
-4. Add the dummy database from IIAB project:
+3. Add the dummy database from IIAB project:
 
    ```bash
    wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
    ```
 
-5. Execute Calibre-Web in background:
+4. Execute Calibre-Web in background:
 
    **Note: If you have installed Callibre-Web through IIAB, then this command is not required.**
 
@@ -177,26 +178,26 @@ Integration tests were added to this project, follow the steps below to set up a
    nohup python3 cps.py &
    ```
 
-6. Install tests requirements in the same virtual environment as step 3:
+5. Install tests requirements in the same virtual environment as step 3:
 
    ```bash
    pip install -r integration-tests-requirements.txt
    ```
 
-7. Execute the tests:
+6. Execute the tests:
 
    **Note: You must run the tests as a non-root user**
 
    If you want to watch the execution process, and the interaction with the browser:
 
    ```
-   HEADLESS=false pytest -s
+   HEADLESS=false pytest -s --splinter-webdriver chrome
    ```
 
    And you can just run headless:
 
    ```
-   HEADLESS=true pytest -s
+   HEADLESS=true pytest -s --splinter-webdriver chrome
    ```
 
 ## Contact
