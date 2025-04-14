@@ -171,7 +171,7 @@ Integration tests were added to this project, follow the steps below to set up a
 
 4. Execute Calibre-Web in background:
 
-   **Note: If you have installed Callibre-Web through IIAB, then this command is not required.**
+   **Note: If you have installed Calibre-Web through IIAB, then this command is not required.**
 
    ```bash
    nohup python3 cps.py &
