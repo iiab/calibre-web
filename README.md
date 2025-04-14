@@ -144,7 +144,7 @@ Integration tests were added to this project, follow the steps below to set up a
 
 1. **Install Chrome and/or Firefox to enable Selenium testing**:
 
-   Follow the instructions on this page to [install Chrome for Ubuntu](https://linuxcapable.com/install-google-chrome-on-ubuntu-linux/)
+    - [Install Chrome for Ubuntu](https://linuxcapable.com/install-google-chrome-on-ubuntu-linux/) and/or
 
    For Firefox, follow these [instructions](https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended)
 
