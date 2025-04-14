@@ -8,7 +8,7 @@ from pytest_bdd import (
 )
 
 import os
-import subprocess 
+import subprocess
 from urllib.parse import urljoin
 import time
 
@@ -18,12 +18,12 @@ def splinter_headless():
     if os.environ['HEADLESS'] == "true":
         return True
     else:
-        return False 
+        return False
 
 @pytest.fixture(scope='session')
 def splinter_webdriver():
     """Override splinter webdriver name."""
-    return 'chrome'
+    return 'firefox'
 
 @pytest.fixture
 def step_context():
@@ -77,6 +77,8 @@ def _(browser, step_context):
 @when('I login with valid credentials')
 def _(browser, step_context):
     """I login with valid credentials."""
+    guest = browser.find_by_id('top_user')
+    guest.click()
     browser.fill('username', 'Admin')
     browser.fill('password', 'changeme')
     button = browser.find_by_name('submit')
@@ -92,5 +94,5 @@ def _(browser, step_context):
 @then('see the information for logged users')
 def _(browser):
     """see the information for logged users"""
-    assert browser.is_text_present('Books'), 'Expected "Books" text to be visible on the home page' 
-    assert browser.is_text_present('Download to IIAB'), 'Expected "Download to IIAB" button for logged users' 
+    assert browser.is_text_present('Books'), 'Expected "Books" text to be visible on the home page'
+    assert browser.is_text_present('Download to IIAB'), 'Expected "Download to IIAB" button for logged users'
