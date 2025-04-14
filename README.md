@@ -177,7 +177,7 @@ Integration tests were added to this project, follow the steps below to set up a
    nohup python3 cps.py &
    ```
 
-5. Install tests requirements in the same virtual environment as step 3:
+5. Install tests requirements in the same virtual environment:
 
    ```bash
    pip install -r integration-tests-requirements.txt
