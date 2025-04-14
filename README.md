@@ -146,7 +146,11 @@ Integration tests were added to this project, follow the steps below to set up a
    e.g., Follow the instructions on this page to install Chrome for Ubuntu: https://linuxcapable.com/install-google-chrome-on-ubuntu-linux/
    
 2. **Install dependencies**:
-   Ensure you have all required dependencies installed. Use the following commands:
+   Ensure you have all required dependencies installed.
+
+   First, install Calibre-Web following the instructions here: https://github.com/iiab/calibre-web/wiki#wrench-installation
+
+   Then, set up the python environment using the following commands:
 
    ```bash
    cd /opt/iiab/calibre-web-py3    # cd into the directory where you have Calibre-Web cloned
@@ -155,25 +159,25 @@ Integration tests were added to this project, follow the steps below to set up a
    pip install -r requirements.txt
    ```
 
-3. Add the dummy database from IIAB project:
+4. Add the dummy database from IIAB project:
 
    ```bash
    wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
    ```
 
-4. Execute Calibre-Web in background: (NB: you must have two separate terminal windows open, one for running Calibre-Web in the background and one for tests)
+5. Execute Calibre-Web in background: (NB: you must have two separate terminal windows open, one for running Calibre-Web in the background and one for tests)
 
    ```bash
    nohup python3 cps.py &
    ```
 
-5. Install tests requirements: (NB: Open a separate terminal window, activate the Calibre-Web venv, and continue with the below steps)
+6. Install tests requirements: (NB: Open a separate terminal window, activate the Calibre-Web venv, and continue with the below steps)
 
    ```bash
    pip install -r integration-tests-requirements.txt
    ```
 
-6. Execute the tests: (NB: you must run the tests as a non-root user)
+7. Execute the tests: (NB: you must run the tests as a non-root user)
 
    If you want to watch the execution process, and the interaction with the browser:
 
