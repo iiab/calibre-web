@@ -150,25 +150,31 @@ Integration tests were added to this project, follow the steps below to set up a
 
 **Note: Please run the remaining commands as a non-root user**
 
-2. **Install dependencies**:
+2. **Enter into the directory where Calibre-Web is located**
+    If you have installed Calibre-Web as part of IIAB, then it will be located in /usr/local/calibre-web-py3.
+    If you have cloned Calibre-Web seperately, then use the cd command to enter that directory.
+
+   ```bash
+   cd /usr/local/calibre-web-py3
+   ```
+
+3. **Install dependencies**:
 
    Set up the python virtual environment using the following commands:
 
    ```bash
-   cd /usr/local/calibre-web-py3   # cd into the directory where you have Calibre-Web cloned
    python3 -m venv calibre-web-env
    source calibre-web-env/bin/activate
    pip install -r requirements.txt
    ```
-   If Calibre-Web is installed by IIAB, then `/usr/local/calibre-web-py3` is the location of the repo.
 
-3. Add the dummy database from IIAB project:
+4. Add the dummy database from IIAB project:
 
    ```bash
    wget -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
    ```
 
-4. Execute Calibre-Web in background:
+5. Execute Calibre-Web in background:
 
    **Note: If you have installed Calibre-Web through IIAB, then this command is not required.**
 
@@ -176,13 +182,13 @@ Integration tests were added to this project, follow the steps below to set up a
    nohup python3 cps.py &
    ```
 
-5. Install tests requirements in the same virtual environment:
+6. Install tests requirements in the same virtual environment:
 
    ```bash
    pip install -r integration-tests-requirements.txt
    ```
 
-6. Execute the tests:
+7. Execute the tests:
 
    **Note: You must run the tests as a non-root user**
 
