@@ -150,8 +150,10 @@ Integration tests were added to this project, follow the steps below to set up a
 
 **Note: Please run the remaining commands as a non-root user**
 
-2. **Enter into the directory where Calibre-Web is located**
+2. **Enter into the directory where Calibre-Web is located**:
+
     If you have installed Calibre-Web as part of IIAB, then it will be located in /usr/local/calibre-web-py3.
+
     If you have cloned Calibre-Web seperately, then use the cd command to enter that directory.
 
    ```bash
