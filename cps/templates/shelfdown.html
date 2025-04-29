@@ -19,13 +19,6 @@
        <link href="{{ url_for('static', filename='css/caliBlur.css') }}" rel="stylesheet" media="screen">
        <link href="{{ url_for('static', filename='css/caliBlur_override.css') }}" rel="stylesheet" media="screen">
     {% endif %}
-    <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
-    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
-    <!--[if lt IE 9]>
-      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
-      <script src="https://oss.maxcdn.com/libs/respond.js/1.3.0/respond.min.js"></script>
-    <![endif]-->
-
     {% block header %}{% endblock %}
   </head>
   <body class="{{ page }} shelf-down">
@@ -52,7 +45,7 @@
           <a href="{{url_for('web.books_list', data='series', sort_param='stored', book_id=entry.Books.series[0].id )}}">
             {{entry.Books.series[0].name}}
           </a>
-          ({{entry.Books.series_index}})
+          ({{entry.Books.series_index|formatfloat(2)}})
         </p>
         {% endif %}
       </div>
@@ -62,7 +55,7 @@
             {% if entry.Books.data|length %}
             <div class="btn-group" role="group">
                 {% for format in entry.Books.data %}
-                <a href="{{ url_for('web.download_link', book_id=entry.Books.id, book_format=format.format|lower, anyname=entry.Books.id|string+'.'+format.format|lower) }}" id="btnGroupDrop{{entry.Books.id}}{{format.format|lower}}" class="btn btn-primary" role="button">
+                <a href="{{ url_for('web.download_link', book_id=entry.Books.id, book_format=format.format|lower, anyname=entry.Books.id|string+'.'+format.format|lower|replace('kepub', 'kepub.epub')) }}" id="btnGroupDrop{{entry.Books.id}}{{format.format|lower}}" class="btn btn-primary" role="button">
                   <span class="glyphicon glyphicon-download"></span>{{format.format}} ({{ format.uncompressed_size|filesizeformat }})
                 </a>
                 {% endfor %}

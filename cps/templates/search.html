@@ -41,7 +41,7 @@
 
   <div class="row display-flex">
     {% for entry in entries %}
-    <div class="col-sm-3 col-lg-2 col-xs-6 book">
+    <div class="col-sm-3 col-lg-2 col-xs-6 book session">
       <div class="cover">
         {% if entry.Books.has_cover is defined %}
            <a href="{{ url_for('web.show_book', book_id=entry.Books.id) }}" {% if simple==false %}data-toggle="modal" data-target="#bookDetailsModal" data-remote="false"{% endif %}>
@@ -73,18 +73,16 @@
               <a class="author-name" href="{{url_for('web.books_list',  data='author', sort_param='stored', book_id=author.id) }}">{{author.name.replace('|',',')|shortentitle(30)}}</a>
             {% endif %}
           {% endfor %}
-          {% for format in entry.Books.data %}
-            {% if format.format|lower in g.constants.EXTENSIONS_AUDIO %}
+          {% if entry.Books.data|music %}
             <span class="glyphicon glyphicon-music"></span>
-            {% endif %}
-          {% endfor %}
+          {% endif %}
         </p>
         {% if entry.Books.series.__len__() > 0 %}
         <p class="series">
           <a href="{{url_for('web.books_list', data='series', sort_param='stored', book_id=entry.Books.series[0].id )}}">
             {{entry.Books.series[0].name}}
           </a>
-          ({{entry.Books.series_index|formatseriesindex}})
+          ({{entry.Books.series_index|formatfloat(2)}})
         </p>
         {% endif %}
 

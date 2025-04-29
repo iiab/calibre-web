@@ -36,7 +36,7 @@ except ImportError:
     from .tornado_wsgi import MyWSGIContainer
     from tornado.httpserver import HTTPServer
     from tornado.ioloop import IOLoop
-    from tornado.netutil import bind_unix_socket
+    from tornado import netutil
     from tornado import version as _version
     VERSION = 'Tornado ' + _version
     _GEVENT = False
@@ -96,7 +96,8 @@ class WebServer(object):
                 log.warning('Cert path: %s', certfile_path)
                 log.warning('Key path:  %s', keyfile_path)
 
-    def _make_gevent_socket_activated(self):
+    @staticmethod
+    def _make_gevent_socket_activated():
         # Reuse an already open socket on fd=SD_LISTEN_FDS_START
         SD_LISTEN_FDS_START = 3
         return GeventSocket(fileno=SD_LISTEN_FDS_START)
@@ -138,8 +139,8 @@ class WebServer(object):
             return ((self.listen_address, self.listen_port),
                     _readable_listen_address(self.listen_address, self.listen_port))
 
+        address = ('::', self.listen_port)
         try:
-            address = ('::', self.listen_port)
             sock = WSGIServer.get_listener(address, family=socket.AF_INET6)
         except socket.error as ex:
             log.error('%s', ex)
@@ -255,7 +256,7 @@ class WebServer(object):
             elif unix_socket_file and os.name != 'nt':
                 self._prepare_unix_socket(unix_socket_file)
                 output = "unix:" + unix_socket_file
-                unix_socket = bind_unix_socket(self.unix_socket_file)
+                unix_socket = netutil.bind_unix_socket(self.unix_socket_file)
                 http_server.add_socket(unix_socket)
                 # ensure current user and group have r/w permissions, no permissions for other users
                 # this way the socket can be shared in a semi-secure manner
@@ -300,7 +301,6 @@ class WebServer(object):
         log.info("Performing restart of Calibre-Web")
         args = self._get_args_for_reloading()
         os.execv(args[0].lstrip('"').rstrip('"'), args)
-        return True
 
     @staticmethod
     def shutdown_scheduler():
@@ -326,4 +326,5 @@ class WebServer(object):
                 if restart:
                     self.wsgiserver.call_later(1.0, self.wsgiserver.stop)
                 else:
-                    self.wsgiserver.add_callback_from_signal(self.wsgiserver.stop)
+                    self.wsgiserver.asyncio_loop.call_soon_threadsafe(self.wsgiserver.stop)
+

@@ -25,13 +25,13 @@ import threading
 import time
 import zipfile
 from io import BytesIO
-from tempfile import gettempdir
-
 import requests
+
 from flask_babel import format_datetime
 from flask_babel import gettext as _
 
 from . import constants, logger  #  config, web_server
+from .file_helper import get_temp_dir
 
 
 log = logger.create()
@@ -52,6 +52,8 @@ class Updater(threading.Thread):
 
     def __init__(self):
         threading.Thread.__init__(self)
+        self.web_server = None
+        self.config = None
         self.paused = False
         self.can_run = threading.Event()
         self.pause()
@@ -85,7 +87,7 @@ class Updater(threading.Thread):
             z = zipfile.ZipFile(BytesIO(r.content))
             self.status = 3
             log.debug('Extracting zipfile')
-            tmp_dir = gettempdir()
+            tmp_dir = get_temp_dir()
             z.extractall(tmp_dir)
             folder_name = os.path.join(tmp_dir, z.namelist()[0])[:-1]
             if not os.path.isdir(folder_name):
@@ -327,7 +329,7 @@ class Updater(threading.Thread):
     @classmethod
     def _stable_version_info(cls):
         log.debug("Stable version: {}".format(constants.STABLE_VERSION))
-        return constants.STABLE_VERSION  # Current Version
+        return {'version': constants.STABLE_VERSION }
 
     @classmethod
     def dry_run(cls):
@@ -566,7 +568,7 @@ class Updater(threading.Thread):
                 try:
                     current_version[2] = int(current_version[2])
                 except ValueError:
-                    current_version[2] = int(current_version[2].split(' ')[0])-1
+                    current_version[2] = int(current_version[2].replace("b", "").split(' ')[0])-1
 
                 # Check if major versions are identical search for newest non-equal commit and update to this one
                 if major_version_update == current_version[0]:

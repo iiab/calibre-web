@@ -41,7 +41,7 @@ STAT_ENDED = 4
 STAT_CANCELLED = 5
 
 # Only retain this many tasks in dequeued list
-TASK_CLEANUP_TRIGGER = 20
+TASK_CLEANUP_TRIGGER = 101
 
 QueuedTask = namedtuple('QueuedTask', 'num, user, added, task, hidden')
 
@@ -199,7 +199,7 @@ class CalibreTask:
             self.run(*args)
         except Exception as ex:
             self._handleError(str(ex))
-            log.error_or_exception(ex)
+            log.exception(ex)
 
         self.end_time = datetime.now()
 
@@ -235,7 +235,7 @@ class CalibreTask:
 
     @property
     def dead(self):
-        """Determines whether or not this task can be garbage collected
+        """Determines whether this task can be garbage collected
 
         We have a separate dictating this because there may be certain tasks that want to override this
         """
@@ -266,3 +266,6 @@ class CalibreTask:
     def _handleSuccess(self):
         self.stat = STAT_FINISH_SUCCESS
         self.progress = 1
+
+    def __str__(self):
+        return self.name

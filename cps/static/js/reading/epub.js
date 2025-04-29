@@ -13,10 +13,9 @@ var reader;
         bookmarks: calibre.bookmark ? [calibre.bookmark] : []
     });
 
-    reader.rendition.themes.register("lightTheme", "/static/css/epub_themes.css");
-    reader.rendition.themes.register("darkTheme", "/static/css/epub_themes.css");
-    reader.rendition.themes.register("sepiaTheme", "/static/css/epub_themes.css");
-    reader.rendition.themes.register("blackTheme", "/static/css/epub_themes.css");
+    Object.keys(themes).forEach(function (theme) {
+        reader.rendition.themes.register(theme, themes[theme].css_path);
+    });
 
     if (calibre.useBookmarks) {
         reader.on("reader:bookmarked", updateBookmark.bind(reader, "add"));
@@ -53,6 +52,32 @@ var reader;
         }
     });
 
+    // Update progress percentage
+    let progressDiv = document.getElementById("progress");
+    reader.book.ready.then((()=>{
+        let locations_key = reader.book.key()+'-locations';
+        let stored_locations = localStorage.getItem(locations_key);
+        let make_locations, save_locations;
+        if (stored_locations) {
+            make_locations = Promise.resolve(reader.book.locations.load(stored_locations));
+            // No-op because locations are already saved
+            save_locations = ()=>{};
+        } else {
+            make_locations = reader.book.locations.generate();
+            save_locations = ()=>{
+                localStorage.setItem(locations_key, reader.book.locations.save());
+            };
+        }
+        make_locations.then(()=>{
+            reader.rendition.on('relocated', (location)=>{
+                let percentage = Math.round(location.end.percentage*100);
+                progressDiv.textContent=percentage+"%";
+            });
+            reader.rendition.reportLocation();
+            progressDiv.style.visibility = "visible";
+        }).then(save_locations);
+    }));
+
     /**
      * @param {string} action - Add or remove bookmark
      * @param {string|int} location - Location or zero
@@ -78,6 +103,8 @@ var reader;
             alert(error);
         });
     }
+    
+    // Default settings load
+    const theme = localStorage.getItem("calibre.reader.theme") ?? "lightTheme";
+    selectTheme(theme);
 })();
-
-

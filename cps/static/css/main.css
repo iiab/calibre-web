@@ -77,7 +77,6 @@ body {
 }
 
 #panels a {
-  visibility: hidden;
   width: 18px;
   height: 20px;
   overflow: hidden;
@@ -512,12 +511,12 @@ input:-moz-placeholder { color: #454545; }
   position: fixed;
   top: 50%;
   left: 50%;
-  width: 630px;
+  transform: translate(-50%, -50%);
+  width: 100vw;
   height: auto;
+  max-width: 630px;
   z-index: 2000;
   visibility: hidden;
-  margin-left: -320px;
-  margin-top: -160px;
 }
 
 .overlay {
@@ -551,7 +550,7 @@ input:-moz-placeholder { color: #454545; }
   position: relative;
   border-radius: 3px;
   margin: 0 auto;
-  height: 320px;
+  /* height: 320px; */
 }
 
 .md-content > div {
@@ -826,3 +825,10 @@ input:-moz-placeholder { color: #454545; }
 .icon-columns::before { content: '\e810'; } /* '' */
 .icon-list::before { content: '\e800'; } /* '' */
 .icon-resize-small::before { content: '\e808'; } /* '' */
+
+#progress{
+    right: 4rem;
+    bottom: 4rem;
+    width: fit-content;
+    position: absolute;
+}
