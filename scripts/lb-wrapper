@@ -24,7 +24,8 @@ OUTTMPL="${TMP_DOWNLOADS_DIR}/%(extractor_key,extractor)s/%(uploader,uploader_id
 FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
 
 # These options are being passed straight to yt-dlp. So to avoid parsing errors, you must include the "=".
-YT_DLP_OPTIONS="-o='${OUTTMPL} ${FORMAT_OPTIONS} '"
+YT_DLP_OPTIONS="-o='${OUTTMPL}' ${FORMAT_OPTIONS}"
+
 
 VERBOSITY="-vv"
 
