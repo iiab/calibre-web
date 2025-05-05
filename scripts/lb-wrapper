@@ -6,8 +6,9 @@ URL_OR_SEARCH_TERM="$2"
 LOG_FILE="/var/log/xklb.log"
 XKLB_DB_FILE="/library/calibre-web/xklb-metadata.db"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
-# outtmpl explanation:
-# https://github.com/yt-dlp/yt-dlp#output-template
+
+#OUTTMPL refers to yt-dlp's "OUTPUT TEMPLATE". This is a filepath with regex that can interpret attributes about the video. It enables things like a file structure sorted by Youtube Channel, or embedding metadata in the filename of the video. It is also mentioned in the "yt-dlp --help" menu. See https://github.com/yt-dlp/yt-dlp#output-template for more info.
+# Additional uses of the OUTPUT TEMPLATE:
 # https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L385-L388
 # https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L508-L523
 # /library/downloads/calibre-web/                                                                         (TMP_DOWNLOADS_DIR)
