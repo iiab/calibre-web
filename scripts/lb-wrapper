@@ -24,7 +24,7 @@ OUTTMPL="${TMP_DOWNLOADS_DIR}/%(extractor_key,extractor)s/%(uploader,uploader_id
 FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
 
 # These options are being passed straight to yt-dlp. So to avoid parsing errors, you must include the "=".
-YT_DLP_OPTIONS="-o='${OUTTMPL}' ${FORMAT_OPTIONS}"
+YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o='${OUTTMPL}' ${FORMAT_OPTIONS}"
 
 
 VERBOSITY="-vv"
@@ -87,7 +87,7 @@ log "Info" "Using yt-dlp $(yt-dlp --version)"
 if [[ $XKLB_INTERNAL_CMD == "tubeadd" ]]; then
     xklb_full_cmd="lb tubeadd '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${VERBOSITY}"
 elif [[ $XKLB_INTERNAL_CMD == "dl" ]]; then
-    xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' --write-thumbnail --subs --live --live-from-start ${YT_DLP_OPTIONS} ${VERBOSITY}"
+    xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' --subs ${YT_DLP_OPTIONS} ${VERBOSITY}"
 elif [[ $XKLB_INTERNAL_CMD == "search" ]]; then
     xklb_full_cmd="lb search '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}'"
 else
