@@ -24,6 +24,7 @@ OUTTMPL="${TMP_DOWNLOADS_DIR}/%(extractor_key,extractor)s/%(uploader,uploader_id
 FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
 
 # These options are being passed straight to yt-dlp. So to avoid parsing errors, you must include the "=".
+# For info on why we are strict about this, see #267 https://github.com/iiab/calibre-web/issues/267
 YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o='${OUTTMPL}' ${FORMAT_OPTIONS}"
 
 
