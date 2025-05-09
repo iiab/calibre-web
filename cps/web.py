@@ -25,7 +25,8 @@ import chardet  # dependency of requests
 import copy
 from importlib.metadata import metadata
 
-from flask import Blueprint, jsonify, request, redirect, send_from_directory, make_response, flash, abort, url_for
+from flask import Blueprint, jsonify, request, redirect, send_from_directory, make_response, flash, abort, url_for, \
+    Response, stream_with_context
 from flask import session as flask_session
 from flask_babel import gettext as _
 from flask_babel import get_locale
@@ -60,6 +61,7 @@ from .services.worker import WorkerThread
 from .tasks_status import render_task_status
 from .usermanagement import user_login_required
 from .string_helper import strip_whitespaces
+from .subproc_wrapper import process_open
 
 
 feature_support = {
@@ -1271,6 +1273,90 @@ def send_to_ereader(book_id, book_format, convert):
     return make_response(jsonify(response))
 
 
+@web.route('/videostream/<int:book_id>/<video_format>')
+@login_required_if_no_ano
+@viewer_required
+def stream_video_with_ffmpeg(book_id, video_format):
+    book = calibre_db.get_book(book_id)
+    if not book:
+        log.error(f"ffmpeg_stream: Book ID {book_id} not found.")
+        abort(404, "Book not found")
+
+    data = calibre_db.get_book_format(book_id, video_format.upper())
+    if not data:
+        log.error(f"ffmpeg_stream: Format {video_format.upper()} for book {book_id} not found.")
+        abort(404, "Video format not found for this book")
+
+    video_file_path = os.path.join(config.get_book_path(), book.path, data.name + "." + video_format)
+
+    if not os.path.isfile(video_file_path):
+        log.error(f"ffmpeg_stream: Video file not found at path: {video_file_path}")
+        abort(404, "Video file not found on server")
+
+    ffmpeg_command = [
+        'ffmpeg',
+        '-i', video_file_path,
+        '-movflags', 'frag_keyframe+empty_moov+faststart',
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        '-f', 'mp4',
+        '-loglevel', 'error',
+        'pipe:1'
+    ]
+
+    log.info(f"ffmpeg_stream: Starting for {video_file_path}. Command: {' '.join(ffmpeg_command)}")
+
+    def generate_video_chunks():
+        process = None
+        try:
+            process = process_open(
+                ffmpeg_command,
+                newlines=False
+            )
+
+            while True:
+                chunk = process.stdout.read(8192)  # Read 8KB binary chunks
+                if not chunk:
+                    log.info(f"ffmpeg_stream: stdout stream ended for {video_file_path}.")
+                    if process.poll() is not None:
+                        log.error(f"ffmpeg_stream: ffmpeg process for {video_file_path} exited with code {process.returncode}")
+                        break
+                    break
+                yield chunk
+            
+            process.stdout.close()
+            process.wait()
+            
+            stderr_data = process.stderr.read()
+            process.stderr.close()
+
+            if process.returncode != 0:
+                log.error(f"ffmpeg_stream: ffmpeg process for {video_file_path} exited with code {process.returncode}. Stderr: {stderr_data.decode('utf-8', errors='ignore')}")
+            else:
+                log.info(f"ffmpeg_stream: ffmpeg process for {video_file_path} completed successfully.")
+
+        except Exception as e:
+            log.error(f"ffmpeg_stream: Exception during streaming for {video_file_path}: {e}", exc_info=True)
+        finally:
+            if process and process.poll() is None:
+                log.warning(f"ffmpeg_stream: Terminating ffmpeg process for {video_file_path} due to generator exit or error.")
+                try:
+                    process.terminate()
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    log.warning(f"ffmpeg_stream: ffmpeg process for {video_file_path} did not terminate gracefully, killing.")
+                    process.kill()
+                except Exception as e_term:
+                    log.error(f"ffmpeg_stream: Error terminating ffmpeg for {video_file_path}: {e_term}")
+            log.info(f"ffmpeg_stream: Generator for {video_file_path} finished.")
+
+    mimetype = f'video/{video_format.lower()}'
+    if video_format.lower() == 'ogv':
+        mimetype = 'video/ogg'
+    
+    return Response(stream_with_context(generate_video_chunks()), mimetype=mimetype)
+
+
 # ################################### Login Logout ##################################################################
 
 @web.route('/register', methods=['POST'])
@@ -1614,9 +1700,24 @@ def read_book(book_id, book_format):
                 return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
         for fileExt in constants.EXTENSIONS_VIDEO:
             if book_format.lower() == fileExt:
-                entries = calibre_db.get_filtered_book(book_id)
-                log.debug("Start video watching for %d", book_id)
-                return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
+                log.debug("Routing to ffmpeg stream for %d", book_id)
+                # Generate URL for ffmpeg stream
+                # video_stream_url = url_for('web.stream_video_with_ffmpeg', book_id=book_id, video_format=book_format.lower())
+                video_path = os.path.join(config.config_calibre_dir, book.path)
+                # look into video_path for any video file (based on book_format)
+                video_file = None
+                for file in os.listdir(video_path):
+                    if file.lower().endswith(book_format.lower()):
+                        video_file = os.path.join(video_path, file)
+                        break
+                if not video_file:
+                    log.error(f"Video file not found in {video_path} for book {book_id}")
+                    flash(_("Oops! Video file not found."), category="error")
+                    return redirect(url_for("web.index"))
+                video_stream_url = url_for('web.stream_video_with_ffmpeg', book_id=book_id, video_format=book_format.lower())
+                video_mimetype = f'video/{book_format.lower()}'
+                return render_title_template('videostream.html', videofile=video_stream_url, videotype=video_mimetype,
+                                             entry=book, bookmark=bookmark)
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
                 all_name = str(book_id)
