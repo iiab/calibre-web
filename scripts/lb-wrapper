@@ -7,7 +7,12 @@ LOG_FILE="/var/log/xklb.log"
 XKLB_DB_FILE="/library/calibre-web/xklb-metadata.db"
 TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
 
-#OUTTMPL refers to yt-dlp's "OUTPUT TEMPLATE". This is a filepath with regex that can interpret attributes about the video. It enables things like a file structure sorted by Youtube Channel, or embedding metadata in the filename of the video. It is also mentioned in the "yt-dlp --help" menu. See https://github.com/yt-dlp/yt-dlp#output-template for more info.
+# OUTTMPL refers to yt-dlp's "OUTPUT TEMPLATE". This is a filepath with regex
+# that can interpret attributes about the video. It enables things like a file
+# structure sorted by YouTube channel, or embedding metadata in the filename of
+# the video. It is also mentioned in the "yt-dlp --help" menu. For more info,
+# see: https://github.com/yt-dlp/yt-dlp#output-template
+#
 # Additional uses of the OUTPUT TEMPLATE:
 # https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L385-L388
 # https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L508-L523
@@ -23,8 +28,10 @@ OUTTMPL="${TMP_DOWNLOADS_DIR}/%(extractor_key,extractor)s/%(uploader,uploader_id
 # FORMAT_OPTIONS="--format-sort=size"
 FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
 
-# These options are being passed straight to yt-dlp. So to avoid parsing errors, you must include the "=".
-# For info on why we are strict about this, see #267 https://github.com/iiab/calibre-web/issues/267
+# xklb (library) passes all these options passes straight to yt-dlp. Recent
+# versions of Python 3.12+ require option values to be specified using "="
+# instead of " " to avoid parsing errors:
+# https://github.com/iiab/calibre-web/issues/267
 YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o='${OUTTMPL}' ${FORMAT_OPTIONS}"
 
 
