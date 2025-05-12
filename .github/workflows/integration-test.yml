@@ -13,28 +13,25 @@ jobs:
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
       - run: firefox --version
-      - name: "Create python environment"
+      - name: Create Python environment
         run: |
           python3 -m venv calibre-web-env
           source calibre-web-env/bin/activate
       - name: Install Python dependencies for testing
         uses: py-actions/py-dependency-install@v4
         with:
-          path: "requirements.txt"
-      - name: "Download dummy database"
-        run: |
-          wget  -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
-      - name: "Execute calibre web in background"
-        run: |
-          nohup python3 cps.py &
-      - name: "Verify local website"
-        run: |
-          curl -L localhost:8083
+          path: requirements.txt
+      - name: Download dummy database
+        run: wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
+      - name: Execute Calibre-Web in background
+        run: nohup python3 cps.py &
+      - name: Verify local website
+        run: curl -L localhost:8083
       - name: Install Python dependencies for testing
         uses: py-actions/py-dependency-install@v4
         with:
-          path: "integration-tests-requirements.txt"
-      - name: Execute PyTest for Integration Tests
+          path: integration-tests-requirements.txt
+      - name: Execute Pytest for Integration Tests
         run: |
           HEADLESS=true pytest -s --splinter-webdriver chrome
           HEADLESS=true pytest -s --splinter-webdriver firefox
