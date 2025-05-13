@@ -140,7 +140,15 @@ We would like to thank all the [contributors](https://github.com/janeczku/calibr
 
 Integration tests were added to this project, follow the steps below to set up and execute the integration tests:
 
+[ A1. LET'S EXPLAIN PURPOSE/CONTEXT OF .github/workflows/integration-test.yml RIGHT AROUND HERE. ]
+
+[ A2. LET'S LINK TO ABOVE integration-test.yml AND/OR SPECIFIC TEST FILE(S) IN QUESTION. ]
+
 ### Prerequisites
+
+[ B1. WHILE LABELED AS "Prerequisites", AREN'T THE STEPS BELOW LARGELY REPEATING WHAT'S IN integration-test.yml ? CAN WE ELIMINATE MUCH OF THIS DUPLICATION BY ADDING INTUITIVE IN-LINE COMMENTS INTO integration-test.yml ? ]
+
+[ B2. "If you have installed Calibre-Web" AND "non-root user" INSTRUCTIONS NEED TO BE SANITY-CHECKED! ]
 
 1. **Install Chrome and/or Firefox to enable Selenium testing**:
 
@@ -152,19 +160,19 @@ Integration tests were added to this project, follow the steps below to set up a
 
 2. **Enter into the directory where Calibre-Web is located**:
 
-    If you have installed Calibre-Web as part of IIAB, then it will be located in /usr/local/calibre-web-py3.
+    If you have [installed Calibre-Web as part of IIAB](https://github.com/iiab/calibre-web/wiki#wrench-installation), run:
 
-    If you have cloned Calibre-Web seperately, then use the cd command to enter that directory.
+    ```
+    cd /usr/local/calibre-web-py3
+    ```
 
-   ```bash
-   cd /usr/local/calibre-web-py3
-   ```
+    If you have cloned Calibre-Web separately, then use the cd command to enter that directory.
 
 3. **Install dependencies**:
 
-   Set up the python virtual environment using the following commands:
+   Set up the Python virtual environment using the following commands:
 
-   ```bash
+   ```
    python3 -m venv calibre-web-env
    source calibre-web-env/bin/activate
    pip install -r requirements.txt
@@ -172,21 +180,21 @@ Integration tests were added to this project, follow the steps below to set up a
 
 4. Add the dummy database from IIAB project:
 
-   ```bash
-   wget -O app.db "https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db"
+   ```
+   wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
    ```
 
 5. Execute Calibre-Web in background:
 
    **Note: If you have installed Calibre-Web through IIAB, then this command is not required.**
 
-   ```bash
+   ```
    nohup python3 cps.py &
    ```
 
 6. Install tests requirements in the same virtual environment:
 
-   ```bash
+   ```
    pip install -r integration-tests-requirements.txt
    ```
 
@@ -200,7 +208,7 @@ Integration tests were added to this project, follow the steps below to set up a
    HEADLESS=false pytest -s --splinter-webdriver chrome
    ```
 
-   And you can just run headless:
+   And/or you can just run headless:
 
    ```
    HEADLESS=true pytest -s --splinter-webdriver chrome
