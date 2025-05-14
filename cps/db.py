@@ -48,6 +48,7 @@ from flask_babel import get_locale
 from flask import flash, g, Flask
 
 from . import logger, ub, isoLanguages
+from .constants import DEFAULT_XKLB_FILE
 from .pagination import Pagination
 from .string_helper import strip_whitespaces
 
@@ -623,6 +624,7 @@ class CalibreDB:
         if not config_calibre_dir:
             return False, False
         dbpath = os.path.join(config_calibre_dir, "metadata.db")
+        xklb_db_path = os.path.join(config_calibre_dir, DEFAULT_XKLB_FILE)
         if not os.path.exists(dbpath):
             return False, False
         try:
@@ -634,6 +636,7 @@ class CalibreDB:
             with check_engine.begin() as connection:
                 connection.execute(text("attach database '{}' as calibre;".format(dbpath)))
                 connection.execute(text("attach database '{}' as app_settings;".format(app_db_path)))
+                connection.execute(text("attach database '{}' as xklb;".format(xklb_db_path)))
                 local_session = scoped_session(sessionmaker())
                 local_session.configure(bind=connection)
                 database_uuid = local_session().query(Library_Id).one_or_none()
@@ -678,6 +681,8 @@ class CalibreDB:
             cls.config.invalidate()
             return None
 
+        xklb_db_path = os.path.join(config_calibre_dir, DEFAULT_XKLB_FILE)
+
         try:
             engine = create_engine('sqlite://',
                                        echo=False,
@@ -688,6 +693,7 @@ class CalibreDB:
                 connection.execute(text('PRAGMA cache_size = 10000;'))
                 connection.execute(text("attach database '{}' as calibre;".format(dbpath)))
                 connection.execute(text("attach database '{}' as app_settings;".format(app_db_path)))
+                connection.execute(text("attach database '{}' as xklb;".format(xklb_db_path)))
 
             conn = engine.connect()
             # conn.text_factory = lambda b: b.decode(errors = 'ignore') possible fix for #1302
