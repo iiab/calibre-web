@@ -59,62 +59,77 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 1. NEW Install Instructions for IIAB Calibre-Web:
 
-   https://github.com/iiab/calibre-web/wiki#wrench-installation
+   <https://github.com/iiab/calibre-web/wiki#wrench-installation>
 
 2. Technical Background explaining Calibre-Web on Internet-in-a-Box (IIAB) :
 
-   https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst
+   <https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst>
 
 ### ~Installation via pip (recommended)~ (NOT FOR IIAB CALIBRE-WEB)
 
 1. **Create a virtual environment**: It’s essential to isolate your Calibre-Web installation to avoid dependency conflicts. You can create a virtual environment by running:
+
    ```
    python3 -m venv calibre-web-env
    ```
+
 2. **Activate the virtual environment**:
+
    ```
    source calibre-web-env/bin/activate
    ```
+
 3. **Install Calibre-Web**: Use pip to install the application:
+
    ```
    pip install calibreweb
    ```
+
 4. **Install optional features**: For additional functionality, you may need to install optional features. Refer to [this page](https://github.com/janeczku/calibre-web/wiki/Dependencies-in-Calibre-Web-Linux-and-Windows) for details on what can be installed.
 5. **Start Calibre-Web**: After installation, you can start the application with:
+
    ```
    cps
    ```
 
 *Note: Users of Raspberry Pi OS may encounter installation issues. If you do, try upgrading pip and/or installing cargo as follows:*
+
    ```
    ./venv/bin/python3 -m pip install --upgrade pip
    sudo apt install cargo
    ```
 
 ### Important Links
+
 - For additional installation examples, check the following:
-   - [Manual installation](https://github.com/janeczku/calibre-web/wiki/Manual-installation)
-   - [Linux Mint installation](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-in-Linux-Mint-19-or-20)
-   - [Cloud Provider setup](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-on-a-Cloud-Provider)
+  - [Manual installation](https://github.com/janeczku/calibre-web/wiki/Manual-installation)
+  - [Linux Mint installation](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-in-Linux-Mint-19-or-20)
+  - [Cloud Provider setup](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-on-a-Cloud-Provider)
 
 ## Quick Start
 
 0. Read the [NEW Install Instructions](#installation) above for IIAB Calibre-Web!
 1. ~**Access Calibre-Web**: Open your browser and navigate to:~
+
    ```
    http://localhost:8083
    ```
+
    ~or for the OPDS catalog:~
+
    ```
    http://localhost:8083/opds
    ```
+
 2. **Log in**: Use the default admin credentials:
    - **Username:** Admin
    - **Password:** changeme
 3. **Database Setup**: If you do not have a Calibre database, download a sample from:
+
    ```
    https://github.com/janeczku/calibre-web/raw/master/library/metadata.db
    ```
+
    Move it out of the Calibre-Web folder to avoid overwriting during updates.
 4. **Configure Calibre Database**: In the admin interface, set the `Location of Calibre database` to the path of the folder containing your Calibre library (where `metadata.db` is located) and click "Save".
 5. **Google Drive Integration**: For hosting your Calibre library on Google Drive, refer to the [Google Drive integration guide](https://github.com/janeczku/calibre-web/wiki/G-Drive-Setup#using-google-drive-integration).
@@ -125,8 +140,8 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 - **Python Version**: Ensure you have Python 3.7 or newer.
 - **Imagemagick**: Required for cover extraction from EPUBs. Windows users may also need to install [Ghostscript](https://ghostscript.com/releases/gsdnld.html) for PDF cover extraction.
 - **Optional Tools**:
-   - **Calibre desktop program**: Recommended for on-the-fly conversion and metadata editing. Set the path to Calibre’s converter tool on the setup page.
-   - **Kepubify tool**: Needed for Kobo device support. Download the tool and place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows.
+  - **Calibre desktop program**: Recommended for on-the-fly conversion and metadata editing. Set the path to Calibre’s converter tool on the setup page.
+  - **Kepubify tool**: Needed for Kobo device support. Download the tool and place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows.
 
 ## Docker Images
 
@@ -136,19 +151,75 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 We would like to thank all the [contributors](https://github.com/janeczku/calibre-web/graphs/contributors) and maintainers of Calibre-Web for their valuable input and dedication to the project. Your contributions are greatly appreciated.
 
-## Running integration tests
+## Integration tests
 
-Integration tests were added to this project, follow the steps below to set up and execute the integration tests:
+Integration testing is a form of software testing in which multiple parts of software are tested as a group.  
+Automated testing is an important aspect of ensuring the health of software. Automated tests can be run on personal computers and GitHub Actions for this project. The ultimate goal of automated testing is to ensure that future changes to the software do not cause bugs. Of course, reality is not always so perfect, but we can at least eliminate as many opportunities for it as possible.
 
-[ A1. LET'S EXPLAIN PURPOSE/CONTEXT OF .github/workflows/integration-test.yml RIGHT AROUND HERE. ]
+#### How the tests are organized
 
-[ A2. LET'S LINK TO ABOVE integration-test.yml AND/OR SPECIFIC TEST FILE(S) IN QUESTION. ]
+You can find the current test plan under in the [features](features) directory. Currently, there is only one test plan, which is [basic_behavior.feature](features/basic_behavior.feature).  
 
-### Prerequisites
+Here what the layout of an example test plan looks like looks like:
 
-[ B1. WHILE LABELED AS "Prerequisites", AREN'T THE STEPS BELOW LARGELY REPEATING WHAT'S IN integration-test.yml ? CAN WE ELIMINATE MUCH OF THIS DUPLICATION BY ADDING INTUITIVE IN-LINE COMMENTS INTO integration-test.yml ? ]
+```
+Feature: Basic behavior 
+    Testing basic behavior like showing home page and login 
 
-[ B2. "If you have installed Calibre-Web" AND "non-root user" INSTRUCTIONS NEED TO BE SANITY-CHECKED! ]
+    Scenario: Home Page 
+        Given Calibre web is running 
+        When I go to the home page 
+
+        Then I should not see the error message
+        And see homepage information
+```
+
+A scenario is a specific test. Depending on the test, some things are taken as given, when an action is performed, then a certain state is reached.
+
+#### How the tests are implemented
+
+The tests are implemented using pytest-splinter, pytest-bdd and Selenium. The gist of all of this is to say that these are tests using [behavior-driven development](https://en.wikipedia.org/wiki/Behavior-driven_development). Pytest-splinter is the main driver of the tests, it is what is really driving the browser through the use of Selenium.  
+
+You can see tests in the [/tests/functional](tests/functional) directory. Currently there is only one test file, [test_basic_behavior.py](tests/functional/test_basic_behavior.py).  
+
+Here is an example of one test:
+
+```
+@scenario('basic_behavior.feature', 'Home Page')
+def test_home_page():
+    """Home Page."""
+
+
+@given('Calibre web is running')
+def _(step_context):
+    """Calibre web is running."""
+    step_context['ip_address'] = 'localhost:8083'
+
+
+@when('I go to the home page')
+def _(browser, step_context):
+    """I go to the home page."""
+    url = urljoin("".join(['http://', str(step_context['ip_address'])]), '/')
+    browser.visit(url)
+
+
+@then('I should not see the error message')
+def _(browser, step_context):
+    """I should not see the error message."""
+
+@then('see homepage information')
+def _(browser):
+    """see homepage information."""
+    print("!!!!!!!")
+    print(browser.title)
+    print(browser.url)
+    print("!!!!!!!")
+    assert browser.is_text_present('Books'), 'Book test'
+```
+
+If you compare this test to the test I showed you in this test plan, then you will see that is pretty much exactly the same. Especially pay attention to the fixtures (the lines that begin with @).
+
+#### Prerequisites
 
 1. **Install Chrome and/or Firefox to enable Selenium testing**:
 
@@ -156,17 +227,11 @@ Integration tests were added to this project, follow the steps below to set up a
 
     - [Install Firefox](https://support.mozilla.org/en-US/kb/install-firefox-linux#w_install-firefox-deb-package-for-debian-based-distributions-recommended) [NB: If you are on Ubuntu Deskop you must remove the Firefox Snap with `sudo snap remove firefox`, or else the tests will fail]
 
-**Note: Please run the remaining commands as a non-root user**
-
 2. **Enter into the directory where Calibre-Web is located**:
-
-    If you have [installed Calibre-Web as part of IIAB](https://github.com/iiab/calibre-web/wiki#wrench-installation), run:
 
     ```
     cd /usr/local/calibre-web-py3
     ```
-
-    If you have cloned Calibre-Web separately, then use the cd command to enter that directory.
 
 3. **Install dependencies**:
 
@@ -178,27 +243,13 @@ Integration tests were added to this project, follow the steps below to set up a
    pip install -r requirements.txt
    ```
 
-4. Add the dummy database from IIAB project:
-
-   ```
-   wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
-   ```
-
-5. Execute Calibre-Web in background:
-
-   **Note: If you have installed Calibre-Web through IIAB, then this command is not required.**
-
-   ```
-   nohup python3 cps.py &
-   ```
-
-6. Install tests requirements in the same virtual environment:
+4. Install the integration test requirements in the same virtual environment:
 
    ```
    pip install -r integration-tests-requirements.txt
    ```
 
-7. Execute the tests:
+#### Running the tests
 
    **Note: You must run the tests as a non-root user**
 
