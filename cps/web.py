@@ -1614,9 +1614,38 @@ def read_book(book_id, book_format):
                 return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
         for fileExt in constants.EXTENSIONS_VIDEO:
             if book_format.lower() == fileExt:
-                entries = calibre_db.get_filtered_book(book_id)
                 log.debug("Start video watching for %d", book_id)
-                return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
+                if config.config_use_google_drive:
+                    # log.debug(f"Video {fileExt} for book {book_id}: routing to serve_book for GDrive.")
+                    # return serve_book.__closure__[0].cell_contents(book_id, fileExt, anyname="")
+                    flash(_("Video streaming via Google Drive is not implemented yet."), category="error")
+                    return redirect(url_for("web.index"))
+                else:                    
+                    video_folder_path = os.path.join(config.config_calibre_dir, book.path)
+                    absolute_video_file_path = None
+    
+                    for file_in_dir in os.listdir(video_folder_path):
+                        if file_in_dir.lower().endswith("." + fileExt):
+                            absolute_video_file_path = os.path.join(video_folder_path, file_in_dir)
+                            break
+
+                    # Construct path relative to Calibre library root for X-Accel-Redirect URI
+                    if absolute_video_file_path.startswith(config.config_calibre_dir):
+                        path_relative = os.path.relpath(absolute_video_file_path, config.config_calibre_dir)
+                    else:
+                        log.error(f"Video path {absolute_video_file_path} not under config_calibre_dir {config.config_calibre_dir}")
+                        flash(_("Oops! Video path configuration error."), category="error")
+                        return redirect(url_for("web.index"))
+
+                    uri_path_component = path_relative.replace(os.sep, "/")
+                    internal_video_path = f"/protected-stream/{uri_path_component}"
+
+                    accel_response = make_response("")
+                    accel_response.headers['X-Accel-Redirect'] = internal_video_path
+                    mimetype = f'video/{fileExt}'
+                    accel_response.headers['Content-Type'] = mimetype
+                    
+                    return accel_response
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
                 all_name = str(book_id)
