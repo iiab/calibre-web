@@ -1638,7 +1638,7 @@ def read_book(book_id, book_format):
                         return redirect(url_for("web.index"))
 
                     uri_path_component = path_relative.replace(os.sep, "/")
-                    internal_video_path = f"/stream/{uri_path_component}"
+                    internal_video_path = f"/protected-stream/{uri_path_component}"
 
                     accel_response = make_response("")
                     accel_response.headers['X-Accel-Redirect'] = internal_video_path
