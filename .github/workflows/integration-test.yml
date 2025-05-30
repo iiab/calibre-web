@@ -31,7 +31,7 @@ jobs:
         uses: py-actions/py-dependency-install@v4
         with:
           path: integration-tests-requirements.txt
-      - name: Execute Pytest for Integration Tests
-        run: |
-          HEADLESS=true pytest -s --splinter-webdriver chrome
-          HEADLESS=true pytest -s --splinter-webdriver firefox
+      - name: Execute Integration Tests for Chrome
+        run: pytest -s --splinter-webdriver chrome --splinter-headless
+      - name: Execute Integration Tests for Firefox
+        run: pytest -s --splinter-webdriver firefox --splinter-headless
