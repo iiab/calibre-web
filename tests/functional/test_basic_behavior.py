@@ -8,9 +8,29 @@ from pytest_bdd import (
     when,
 )
 
-import os
-import subprocess
 from urllib.parse import urljoin
+from selenium import webdriver
+
+
+@pytest.fixture(scope="session")
+def splinter_driver_kwargs(splinter_webdriver):
+    """Override Chrome WebDriver options"""
+    if splinter_webdriver == "chrome":
+        chrome_options = webdriver.ChromeOptions()
+
+        # List of Chromium Command Line Switches
+        # https://peter.sh/experiments/chromium-command-line-switches/
+        chrome_options.add_argument("--no-sandbox")
+
+        return {"options": chrome_options}
+
+    elif splinter_webdriver == "firefox":
+        firefox_options = webdriver.FirefoxOptions()
+        return {"options": firefox_options}
+    else:
+        raise ValueError(
+            "Invalid browser passed to --splinter_Wewbdriver. Only Chrome and Firefox are allowed"
+        )
 
 
 @pytest.fixture
