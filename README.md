@@ -153,10 +153,7 @@ We would like to thank all the [contributors](https://github.com/janeczku/calibr
 
 ## Integration tests
 
-Integration testing is a form of software testing in which multiple parts of software are tested as a group.  
-Automated testing is an important aspect of ensuring the health of software. Automated tests can be run on personal computers and GitHub Actions for this project. The ultimate goal of automated testing is to ensure that future changes to the software do not cause bugs. Of course, reality is not always so perfect, but we can at least eliminate as many opportunities for it as possible.
-
-#### How the tests are organized
+#### Test plans
 
 You can find the current test plan under in the [features](features) directory. Currently, there is only one test plan, which is [basic_behavior.feature](features/basic_behavior.feature).  
 
@@ -167,7 +164,7 @@ Feature: Basic behavior
     Testing basic behavior like showing home page and login 
 
     Scenario: Home Page 
-        Given Calibre web is running 
+        Given Calibre-Web is running 
         When I go to the home page 
 
         Then I should not see the error message
@@ -178,7 +175,9 @@ A scenario is a specific test. Depending on the test, some things are taken as g
 
 #### How the tests are implemented
 
-The tests are implemented using pytest-splinter, pytest-bdd and Selenium. The gist of all of this is to say that these are tests using [behavior-driven development](https://en.wikipedia.org/wiki/Behavior-driven_development). Pytest-splinter is the main driver of the tests, it is what is really driving the browser through the use of Selenium.  
+The tests are implemented using pytest-splinter, pytest-bdd and Selenium. The gist of all of this is to say that these are tests using [behavior-driven development](https://en.wikipedia.org/wiki/Behavior-driven_development). Pytest-splinter is the main driver of the tests, it is what is really driving the browser through the use of Selenium.
+
+Currently, we are limited to using Firefox and Chrome as a result of Splinter (a dependency of pytest-splinter) not supporting Chromium. If this were to change in the future though, we would probably rather use Chromium over Chrome as that is the default browser used with Raspberry Pi.
 
 You can see tests in the [/tests/functional](tests/functional) directory. Currently there is only one test file, [test_basic_behavior.py](tests/functional/test_basic_behavior.py).  
 
@@ -190,9 +189,9 @@ def test_home_page():
     """Home Page."""
 
 
-@given('Calibre web is running')
+@given('Calibre-Web is running')
 def _(step_context):
-    """Calibre web is running."""
+    """Calibre-Web is running."""
     step_context['ip_address'] = 'localhost:8083'
 
 
@@ -233,17 +232,7 @@ If you compare this test to the test I showed you in this test plan, then you wi
     cd /usr/local/calibre-web-py3
     ```
 
-3. **Install dependencies**:
-
-   Set up the Python virtual environment using the following commands:
-
-   ```
-   python3 -m venv calibre-web-env
-   source calibre-web-env/bin/activate
-   pip install -r requirements.txt
-   ```
-
-4. Install the integration test requirements in the same virtual environment:
+3. Install the integration test requirements in the same virtual environment:
 
    ```
    pip install -r integration-tests-requirements.txt
@@ -251,19 +240,19 @@ If you compare this test to the test I showed you in this test plan, then you wi
 
 #### Running the tests
 
-   **Note: You must run the tests as a non-root user**
-
-   If you want to watch the execution process, and the interaction with the browser:
+   If you want to watch the test run
 
    ```
-   HEADLESS=false pytest -s --splinter-webdriver chrome
+   pytest -s --splinter-webdriver chrome
    ```
 
    And/or you can just run headless:
 
    ```
-   HEADLESS=true pytest -s --splinter-webdriver chrome
-   ```
+   pytest -s --splinter-webdriver chrome --splinter-headless
+```
+
+To run the tests with the Firefox browser instead, replace chrome with firefox.
 
 ## Contact
 

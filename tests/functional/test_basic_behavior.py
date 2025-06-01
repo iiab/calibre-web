@@ -44,9 +44,9 @@ def test_home_page():
     """Home Page."""
 
 
-@given("Calibre web is running")
+@given("Calibre-Web is running")
 def _(step_context):
-    """Calibre web is running."""
+    """Calibre-Web is running."""
     step_context["ip_address"] = "localhost:8083"
 
 
