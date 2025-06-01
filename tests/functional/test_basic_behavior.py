@@ -77,9 +77,9 @@ def test_login():
     """Login."""
 
 
-@given("I visit the calibre web homepage")
+@given("I visit the Calibre-Web homepage")
 def _(browser, step_context):
-    """I visit the calibre web homepage."""
+    """I visit the Calibre-Web homepage."""
     step_context["ip_address"] = "localhost:8083"
     url = urljoin("".join(["http://", str(step_context["ip_address"])]), "/")
     browser.visit(url)
