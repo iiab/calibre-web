@@ -59,77 +59,62 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 1. NEW Install Instructions for IIAB Calibre-Web:
 
-   <https://github.com/iiab/calibre-web/wiki#wrench-installation>
+   https://github.com/iiab/calibre-web/wiki#wrench-installation
 
 2. Technical Background explaining Calibre-Web on Internet-in-a-Box (IIAB) :
 
-   <https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst>
+   https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst
 
 ### ~Installation via pip (recommended)~ (NOT FOR IIAB CALIBRE-WEB)
 
 1. **Create a virtual environment**: It’s essential to isolate your Calibre-Web installation to avoid dependency conflicts. You can create a virtual environment by running:
-
    ```
    python3 -m venv calibre-web-env
    ```
-
 2. **Activate the virtual environment**:
-
    ```
    source calibre-web-env/bin/activate
    ```
-
 3. **Install Calibre-Web**: Use pip to install the application:
-
    ```
    pip install calibreweb
    ```
-
 4. **Install optional features**: For additional functionality, you may need to install optional features. Refer to [this page](https://github.com/janeczku/calibre-web/wiki/Dependencies-in-Calibre-Web-Linux-and-Windows) for details on what can be installed.
 5. **Start Calibre-Web**: After installation, you can start the application with:
-
    ```
    cps
    ```
 
 *Note: Users of Raspberry Pi OS may encounter installation issues. If you do, try upgrading pip and/or installing cargo as follows:*
-
    ```
    ./venv/bin/python3 -m pip install --upgrade pip
    sudo apt install cargo
    ```
 
 ### Important Links
-
 - For additional installation examples, check the following:
-  - [Manual installation](https://github.com/janeczku/calibre-web/wiki/Manual-installation)
-  - [Linux Mint installation](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-in-Linux-Mint-19-or-20)
-  - [Cloud Provider setup](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-on-a-Cloud-Provider)
+   - [Manual installation](https://github.com/janeczku/calibre-web/wiki/Manual-installation)
+   - [Linux Mint installation](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-in-Linux-Mint-19-or-20)
+   - [Cloud Provider setup](https://github.com/janeczku/calibre-web/wiki/How-To:-Install-Calibre-Web-on-a-Cloud-Provider)
 
 ## Quick Start
 
 0. Read the [NEW Install Instructions](#installation) above for IIAB Calibre-Web!
 1. ~**Access Calibre-Web**: Open your browser and navigate to:~
-
    ```
    http://localhost:8083
    ```
-
    ~or for the OPDS catalog:~
-
    ```
    http://localhost:8083/opds
    ```
-
 2. **Log in**: Use the default admin credentials:
    - **Username:** Admin
    - **Password:** changeme
 3. **Database Setup**: If you do not have a Calibre database, download a sample from:
-
    ```
    https://github.com/janeczku/calibre-web/raw/master/library/metadata.db
    ```
-
    Move it out of the Calibre-Web folder to avoid overwriting during updates.
 4. **Configure Calibre Database**: In the admin interface, set the `Location of Calibre database` to the path of the folder containing your Calibre library (where `metadata.db` is located) and click "Save".
 5. **Google Drive Integration**: For hosting your Calibre library on Google Drive, refer to the [Google Drive integration guide](https://github.com/janeczku/calibre-web/wiki/G-Drive-Setup#using-google-drive-integration).
@@ -140,8 +125,8 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 - **Python Version**: Ensure you have Python 3.7 or newer.
 - **Imagemagick**: Required for cover extraction from EPUBs. Windows users may also need to install [Ghostscript](https://ghostscript.com/releases/gsdnld.html) for PDF cover extraction.
 - **Optional Tools**:
-  - **Calibre desktop program**: Recommended for on-the-fly conversion and metadata editing. Set the path to Calibre’s converter tool on the setup page.
-  - **Kepubify tool**: Needed for Kobo device support. Download the tool and place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows.
+   - **Calibre desktop program**: Recommended for on-the-fly conversion and metadata editing. Set the path to Calibre’s converter tool on the setup page.
+   - **Kepubify tool**: Needed for Kobo device support. Download the tool and place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows.
 
 ## Docker Images
 
