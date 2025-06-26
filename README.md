@@ -217,7 +217,7 @@ If you compare this test to the test I showed you in this test plan, then you wi
     cd /usr/local/calibre-web-py3
     ```
 
-3. Install the integration test requirements in the same virtual environment:
+3. **Install the integration test requirements in the same virtual environment**:
 
    ```
    pip install -r integration-tests-requirements.txt
