@@ -31,7 +31,10 @@ FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
 # xklb (library) passes all these options straight to yt-dlp. Recent versions
 # of Python 3.12+ require option values to be specified using "=" instead of
 # " " to avoid parsing errors:  https://github.com/iiab/calibre-web/issues/267
-YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o='${OUTTMPL}' ${FORMAT_OPTIONS}"
+# UPDATE: Notice the lack of a space between the '-o' flag and '${OUTTMPL}'.
+# See https://github.com/iiab/calibre-web/issues/321 for the problem that this
+# (hopefully) solves.
+YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o'${OUTTMPL}' ${FORMAT_OPTIONS}"
 
 
 VERBOSITY="-vv"
