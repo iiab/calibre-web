@@ -36,6 +36,7 @@ from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from sqlalchemy.sql.expression import text, func, false, not_, and_, or_
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql.functions import coalesce
+from urllib.parse import quote
 from werkzeug.datastructures import Headers
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -1637,7 +1638,7 @@ def read_book(book_id, book_format):
                         flash(_("Oops! Video path configuration error."), category="error")
                         return redirect(url_for("web.index"))
 
-                    uri_path_component = path_relative.replace(os.sep, "/")
+                    uri_path_component = quote(path_relative.replace(os.sep, "/"))
                     internal_video_path = f"/protected-stream/{uri_path_component}"
 
                     accel_response = make_response("")
