@@ -12,11 +12,9 @@ jobs:
       - name: Clone repo
         run: git clone https://github.com/iiab/iiab
         working-directory: /opt/iiab/
-      # - name: Set proper permissions
+      - name: Set proper permissions
         # If you don't do this, then ./iiab-install fails because of /opt/iiab/iiab being a world writable directory
-        # run: sudo chmod 755 /opt/iiab/iiab
-      - name: Repo dir permissions
-        run: ls -l /opt/iiab/
+        run: sudo chmod 755 /opt/iiab/iiab
       - name: Set up /etc/iiab/local_vars.yml
         run: |
           sudo mkdir /etc/iiab
