@@ -20,7 +20,7 @@ jobs:
       - name: Set up /etc/iiab/local_vars.yml
         run: |
           sudo mkdir /etc/iiab
-          cat >> /etc/iiab/local_vars.yml << EOF
+          cat >> $GITHUB_WORKSPACE/local_vars.yml << EOF
           calibreweb_install: True
           calibreweb_enabled: True
           nodocs: True
