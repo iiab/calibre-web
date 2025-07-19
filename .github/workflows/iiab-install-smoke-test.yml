@@ -43,6 +43,6 @@ jobs:
           echo "calibreweb_version: ${GIT_BRANCH_NAME}" >> ${GITHUB_WORKSPACE}/local_vars.yml
           cat $GITHUB_WORKSPACE/local_vars.yml
           sudo cp $GITHUB_WORKSPACE/local_vars.yml /etc/iiab/local_vars.yml
-      # - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
-      # - run: sudo ./iiab-install                    # Install IIAB!
-        # working-directory: /opt/iiab/iiab/
+      - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
+      - run: sudo ./iiab-install                    # Install IIAB!
+        working-directory: /opt/iiab/iiab/
