@@ -6,6 +6,8 @@ jobs:
   test-install:
     runs-on: ubuntu-24.04
     steps:
+      - name: Get Branch name
+        uses: EthanSK/git-branch-name-action@v1
       - name: Set up /opt/iiab/iiab
         run: |
           sudo mkdir -p /opt/iiab/
@@ -18,8 +20,11 @@ jobs:
       - name: Set up /etc/iiab/local_vars.yml
         run: |
           sudo mkdir /etc/iiab
-          sudo curl https://raw.githubusercontent.com/iiab/calibre-web/master/scripts/omg.yml > $GITHUB_WORKSPACE/local_vars.yml
+          curl https://raw.githubusercontent.com/iiab/calibre-web/master/scripts/omg.yml > $GITHUB_WORKSPACE/local_vars.yml
+          echo "calibreweb_repo_url: ${github.server_url}/${github.repository}" >> $GITHUB_WORKSPACE/local_vars.yml
+          echo "calibreweb_version: ${GIT_BRANCH_NAME}" >> ${GITHUB_WORKSPACE}/local_vars.yml
+          cat $GITHUB_WORKSPACE/local_vars.yml
           sudo cp $GITHUB_WORKSPACE/local_vars.yml /etc/iiab/local_vars.yml
-      - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
-      - run: sudo ./iiab-install                    # Install IIAB!
-        working-directory: /opt/iiab/iiab/
+      #- run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
+      #- run: sudo ./iiab-install                    # Install IIAB!
+      #  working-directory: /opt/iiab/iiab/
