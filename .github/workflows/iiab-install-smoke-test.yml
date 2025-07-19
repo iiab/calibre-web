@@ -20,11 +20,29 @@ jobs:
       - name: Set up /etc/iiab/local_vars.yml
         run: |
           sudo mkdir /etc/iiab
-          curl https://raw.githubusercontent.com/iiab/calibre-web/master/scripts/omg.yml > $GITHUB_WORKSPACE/local_vars.yml
+          cat >> /etc/iiab/local_vars.yml << EOF
+          calibreweb_install: True
+          calibreweb_enabled: True
+          nodocs: True
+          kolibri_install: False
+          kolibri_enabled: False
+          kiwix_install: False
+          kiwix_enabled: False
+          osm_vector_maps_install: False
+          awstats_install: False
+          awstats_enabled: False
+          matomo_install: False
+          matomo_enabled: False
+          captiveportal_install: False
+          network_install: False
+          network_enabled: False
+          admin_console_install: False
+          admin_console_enabled: False
+          EOF
           echo "calibreweb_repo_url: ${{ github.server_url }}/${{ github.repository }}" >> $GITHUB_WORKSPACE/local_vars.yml
           echo "calibreweb_version: ${GIT_BRANCH_NAME}" >> ${GITHUB_WORKSPACE}/local_vars.yml
           cat $GITHUB_WORKSPACE/local_vars.yml
           sudo cp $GITHUB_WORKSPACE/local_vars.yml /etc/iiab/local_vars.yml
-      - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
-      - run: sudo ./iiab-install                    # Install IIAB!
-        working-directory: /opt/iiab/iiab/
+      # - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
+      # - run: sudo ./iiab-install                    # Install IIAB!
+        # working-directory: /opt/iiab/iiab/
