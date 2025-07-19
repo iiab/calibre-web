@@ -17,8 +17,9 @@ jobs:
         # run: sudo chmod 755 /opt/iiab/iiab
       - name: See perms for /opt/iiab/iiab
         run: |
-          sudo umask
           ls -l /opt/iiab/
+          umask
+          su root && umask
       - name: Set up /etc/iiab/local_vars.yml
         run: |
           sudo mkdir /etc/iiab
