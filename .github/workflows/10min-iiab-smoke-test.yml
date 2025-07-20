@@ -37,6 +37,7 @@ jobs:
           sudo mkdir /etc/iiab
           sudo mv local_vars.yml /etc/iiab
           sudo chown root:root /etc/iiab/local_vars.yml    # Override runner:docker (optional!)
+          cat /etc/iiab/local_vars.yml
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
       - run: sudo ./iiab-install                    # Install IIAB Calibre-Web!
         working-directory: /opt/iiab/iiab
