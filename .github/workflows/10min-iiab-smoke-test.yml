@@ -1,4 +1,4 @@
-name: 'Calibre-Web Smoke test with IIAB install'
+name: '"10 min" IIAB install + Calibre-Web smoke test'
 
 on: [push, pull_request, workflow_dispatch]
 
