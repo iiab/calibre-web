@@ -18,7 +18,7 @@ jobs:
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "calibreweb_repo_url: $GITHUB_SERVER_URL/${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.repository.name }}" >> local_vars.yml
             echo "calibreweb_version: $GITHUB_HEAD_REF" >> local_vars.yml
-          else [ "${{ github.event_name }}" == "push" ]; then    # Do the 2 vars below really also work on event "workflow_dispatch", not just event "push" ?
+          else    # Do the 2 vars below really also work on event "workflow_dispatch" ? (i.e not just on event "push" !)
             echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
             echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
           fi
