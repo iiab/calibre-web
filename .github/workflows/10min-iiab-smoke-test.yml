@@ -1,0 +1,42 @@
+name: 'Calibre-Web Smoke test with IIAB install'
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test-install:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Clean clone to /opt/iiab/iiab (chmod permissions preserved)
+        run: |
+          sudo git clone https://github.com/iiab/iiab    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          sudo mkdir /opt/iiab
+          sudo mv iiab /opt/iiab
+      - name: Set up /etc/iiab/local_vars.yml -- equiv to local_vars_unittest.yml + Calibre-Web
+        run: |
+          sudo cat > local_vars.yml << EOF    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          calibreweb_install: True
+          calibreweb_enabled: True
+          calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
+          calibreweb_version: $GITHUB_REF_NAME
+          nodocs: True
+          kolibri_install: False
+          kolibri_enabled: False
+          kiwix_install: False
+          kiwix_enabled: False
+          osm_vector_maps_install: False
+          awstats_install: False
+          awstats_enabled: False
+          matomo_install: False
+          matomo_enabled: False
+          captiveportal_install: False
+          network_install: False
+          network_enabled: False
+          admin_console_install: False
+          admin_console_enabled: False
+          EOF
+          sudo mkdir /etc/iiab
+          sudo mv local_vars.yml /etc/iiab
+          sudo chown root:root /etc/iiab/local_vars.yml    # Override runner:docker (optional!)
+      - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
+      - run: sudo ./iiab-install                    # Install IIAB Calibre-Web!
+        working-directory: /opt/iiab/iiab
