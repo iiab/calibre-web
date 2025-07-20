@@ -13,6 +13,14 @@ jobs:
           sudo mv iiab /opt/iiab
       - name: Set up /etc/iiab/local_vars.yml -- equiv to local_vars_unittest.yml + Calibre-Web
         run: |
+          echo "github.event_name:" ${{ github.event_name }}
+          echo "GITHUB_EVENT_NAME:" $GITHUB_EVENT_NAME
+          echo "github.repository_owner:" ${{ github.repository_owner }}
+          echo "GITHUB_REPOSITORY_OWNER:" $GITHUB_REPOSITORY_OWNER
+          echo "github.head_ref:" ${{ github.head_ref }}
+          echo "GITHUB_HEAD_REF:" $GITHUB_HEAD_REF
+          echo "github.ref_name:" ${{ github.ref_name }}
+          echo "GITHUB_REF_NAME:" $GITHUB_REF_NAME
           sudo cat > local_vars.yml << EOF    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
           calibreweb_install: True
           calibreweb_enabled: True
