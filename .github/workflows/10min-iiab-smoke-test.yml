@@ -22,7 +22,7 @@ jobs:
             echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
             echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
           fi
-          sudo cat >> local_vars.yml << EOF
+          cat >> local_vars.yml << EOF
           nodocs: True
           kolibri_install: False
           kolibri_enabled: False
@@ -42,6 +42,7 @@ jobs:
           sudo mkdir /etc/iiab
           sudo mv local_vars.yml /etc/iiab
           sudo chown root:root /etc/iiab/local_vars.yml    # Override runner:docker (optional!)
+          ls -l /etc/iiab/local_vars.yml
           cat /etc/iiab/local_vars.yml
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
       - run: sudo ./iiab-install                    # Install IIAB Calibre-Web!
