@@ -13,23 +13,16 @@ jobs:
           sudo mv iiab /opt/iiab
       - name: Set up /etc/iiab/local_vars.yml -- equiv to local_vars_unittest.yml + Calibre-Web
         run: |
-          echo "github.event_name:" ${{ github.event_name }}
-          echo "GITHUB_EVENT_NAME:" $GITHUB_EVENT_NAME
-          echo "github.repository_owner:" ${{ github.repository_owner }}
-          echo "GITHUB_REPOSITORY_OWNER:" $GITHUB_REPOSITORY_OWNER
-          echo "github.event.repository.name:" ${{ github.event.repository.name }}
-          echo "GITHUB_EVENT_REPOSITORY_NAME:" $GITHUB_EVENT_REPOSITORY_NAME
-          echo "github.event.pull_request.head.repo.owner.login:" ${{ github.event.pull_request.head.repo.owner.login }}
-          echo "GITHUB_EVENT_PULL_REQUEST_HEAD_REPO_OWNER_LOGIN:" $GITHUB_EVENT_PULL_REQUEST_HEAD_REPO_OWNER_LOGIN
-          echo "github.head_ref:" ${{ github.head_ref }}
-          echo "GITHUB_HEAD_REF:" $GITHUB_HEAD_REF
-          echo "github.ref_name:" ${{ github.ref_name }}
-          echo "GITHUB_REF_NAME:" $GITHUB_REF_NAME
-          sudo cat > local_vars.yml << EOF    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
-          calibreweb_install: True
-          calibreweb_enabled: True
-          calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
-          calibreweb_version: $GITHUB_REF_NAME
+          echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          echo "calibreweb_enabled: True" >> local_vars.yml
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.repository.name }}" >> local_vars.yml
+            echo "calibreweb_version: $GITHUB_HEAD_REF" >> local_vars.yml
+          else [ "${{ github.event_name }}" == "push" ]; then    # Do the 2 vars below really also work on event "workflow_dispatch", not just event "push" ?
+            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
+            echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
+          fi
+          sudo cat >> local_vars.yml << EOF
           nodocs: True
           kolibri_install: False
           kolibri_enabled: False
