@@ -11,6 +11,9 @@ jobs:
           sudo git clone https://github.com/iiab/iiab    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
           sudo mkdir /opt/iiab
           sudo mv iiab /opt/iiab
+          #sudo mkdir /opt/iiab         # Not needed by git clone below, but allows for setfacl removal of ACLs (drwxrwxrwx+) inherited from runner's /opt
+          #sudo setfacl -b /opt/iiab    # Turn off ACLs, reverting to chmod UNIX permissions -- i.e. another way to cleanly preserve chmod throut tree (unlike chmod -R 755 override of 777)
+          #sudo git clone https://github.com/iiab/iiab /opt/iiab/iiab
       - name: Set up /etc/iiab/local_vars.yml -- equiv to local_vars_unittest.yml + Calibre-Web
         run: |
           echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
