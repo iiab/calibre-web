@@ -38,7 +38,7 @@ jobs:
           admin_console_enabled: False
           EOF
           echo "calibreweb_repo_url: ${{ github.server_url }}/${GITHUB_REPOSITORY}" >> $GITHUB_WORKSPACE/local_vars.yml
-          echo "calibreweb_version: ${GITHUB_REF_NAME}" >> $GITHUB_WORKSPACE/local_vars.yml
+          echo "calibreweb_version: pull/324/head" >> $GITHUB_WORKSPACE/local_vars.yml
           cat $GITHUB_WORKSPACE/local_vars.yml
           sudo cp $GITHUB_WORKSPACE/local_vars.yml /etc/iiab/local_vars.yml
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
