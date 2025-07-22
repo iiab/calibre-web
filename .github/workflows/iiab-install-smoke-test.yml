@@ -17,10 +17,16 @@ jobs:
         run: sudo chmod 755 /opt/iiab/iiab
       - name: Set up /etc/iiab/local_vars.yml
         run: |
-          sudo mkdir /etc/iiab
-          cat >> $GITHUB_WORKSPACE/local_vars.yml << EOF
-          calibreweb_install: True
-          calibreweb_enabled: True
+          echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          echo "calibreweb_enabled: True" >> local_vars.yml
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.repository.name }}" >> local_vars.yml
+            echo "calibreweb_version: $GITHUB_HEAD_REF" >> local_vars.yml
+          else
+            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
+            echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
+          fi
+          cat >> local_vars.yml << EOF
           nodocs: True
           kolibri_install: False
           kolibri_enabled: False
@@ -37,10 +43,9 @@ jobs:
           admin_console_install: False
           admin_console_enabled: False
           EOF
-          echo "calibreweb_repo_url: ${{ github.server_url }}/${GITHUB_REPOSITORY}" >> $GITHUB_WORKSPACE/local_vars.yml
-          echo "calibreweb_version: pull/324/head" >> $GITHUB_WORKSPACE/local_vars.yml
-          cat $GITHUB_WORKSPACE/local_vars.yml
-          sudo cp $GITHUB_WORKSPACE/local_vars.yml /etc/iiab/local_vars.yml
+          sudo mkdir /etc/iiab
+          sudo mv local_vars.yml /etc/iiab
+          cat /etc/iiab/local_vars.yml
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
       - run: sudo ./iiab-install                    # Install IIAB!
         working-directory: /opt/iiab/iiab/
