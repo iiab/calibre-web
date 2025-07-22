@@ -18,7 +18,7 @@ jobs:
           if [ "${{ github.event_name }}" == "pull_request" ]; then
             echo "calibreweb_repo_url: $GITHUB_SERVER_URL/${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.repository.name }}" >> local_vars.yml
             echo "calibreweb_version: $GITHUB_HEAD_REF" >> local_vars.yml
-          else
+          else # works for both push and workflow_dispatch
             echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
             echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
           fi
