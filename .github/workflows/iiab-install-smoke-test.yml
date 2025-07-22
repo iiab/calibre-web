@@ -6,15 +6,11 @@ jobs:
   test-install:
     runs-on: ubuntu-24.04
     steps:
-      - name: Set up /opt/iiab/iiab
+      - name: Clean clone to /opt/iiab/iiab (chmod permissions preserved)
         run: |
-          sudo mkdir -p /opt/iiab/
-      - name: Clone repo
-        run: git clone https://github.com/iiab/iiab
-        working-directory: /opt/iiab/
-      - name: Set proper permissions
-        # If you don't do this, then ./iiab-install fails because of /opt/iiab/iiab being a world writable directory
-        run: sudo chmod 755 /opt/iiab/iiab
+          sudo git clone https://github.com/iiab/iiab    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          sudo mkdir /opt/iiab
+          sudo mv iiab /opt/iiab
       - name: Set up /etc/iiab/local_vars.yml
         run: |
           echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
