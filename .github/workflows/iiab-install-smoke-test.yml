@@ -53,6 +53,8 @@ jobs:
         working-directory: /usr/local/calibre-web-py3
       - name: Install Python dependencies for testing
         uses: py-actions/py-dependency-install@v4
+        with:
+          path: /usr/local/calibre-web-py3/integration-tests-requirements.txt
       - name: Install depdenencies and run tests on Firefox
         run: |
           sudo su
