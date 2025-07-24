@@ -48,10 +48,14 @@ jobs:
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
       - run: firefox --version
+      - name: Activate virtual environment
+        run: source bin/activate
+        working-directory: /usr/local/calibre-web-py3
+      - name: Install Python dependencies for testing
+        uses: py-actions/py-dependency-install@v4
       - name: Install depdenencies and run tests on Firefox
         run: |
           sudo su
           source bin/activate
-          pip install -r integration-tests-requirements.txt
           pytest -s --splinter-webdriver firefox --splinter-headless
         working-directory: /usr/local/calibre-web-py3
