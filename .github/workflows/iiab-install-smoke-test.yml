@@ -52,6 +52,6 @@ jobs:
         run: |
           sudo su
           source bin/activate
-          pip -r integration-tests-requirements.txt
+          pip install -r integration-tests-requirements.txt
           pytest -s --splinter-webdriver firefox --splinter-headless
         working-directory: /usr/local/calibre-web-py3
