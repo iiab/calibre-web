@@ -45,3 +45,13 @@ jobs:
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
       - run: sudo ./iiab-install                    # Install IIAB!
         working-directory: /opt/iiab/iiab/
+      - name: Install Firefox
+        uses: browser-actions/setup-firefox@v1
+      - run: firefox --version
+      - name: Install depdenencies and run tests on Firefox
+        run: |
+          sudo su
+          source bin/activate
+          pip -r integration-tests-requirements.txt
+          pytest -s --splinter-webdriver firefox --splinter-headless
+        working-directory: /usr/local/calibre-web-py3
