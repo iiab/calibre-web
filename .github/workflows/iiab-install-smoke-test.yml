@@ -55,9 +55,9 @@ jobs:
         uses: py-actions/py-dependency-install@v4
         with:
           path: /usr/local/calibre-web-py3/integration-tests-requirements.txt
-      - name: Install depdenencies and run tests on Firefox
-        run: |
-          sudo su
-          source bin/activate
-          pytest -s --splinter-webdriver firefox --splinter-headless
+      - name: Execute Integration Tests for Firefox
+        # Note that there are issues with creating the cache path for pytest, which results in the below warning.
+        # PytestCacheWarning: could not create cache path /usr/local/calibre-web-py3/.pytest_cache/v/cache/nodeids: [Errno 13] Permission denied: '/usr/local/calibre-web-py3/pytest-cache-files-su2iy_u0'
+        # The tests pass, and -p no:cacheprovider makes it so the warning is not displayed
+        run: pytest -p no:cacheprovider -s --splinter-webdriver firefox --splinter-headless
         working-directory: /usr/local/calibre-web-py3
