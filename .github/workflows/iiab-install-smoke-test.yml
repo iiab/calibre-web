@@ -45,3 +45,19 @@ jobs:
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
       - run: sudo ./iiab-install                    # Install IIAB!
         working-directory: /opt/iiab/iiab/
+      - name: Install Firefox
+        uses: browser-actions/setup-firefox@v1
+      - run: firefox --version
+      - name: Activate virtual environment
+        run: source bin/activate
+        working-directory: /usr/local/calibre-web-py3
+      - name: Install Python dependencies for testing
+        uses: py-actions/py-dependency-install@v4
+        with:
+          path: /usr/local/calibre-web-py3/integration-tests-requirements.txt
+      - name: Execute Integration Tests for Firefox
+        # Note that there are issues with creating the cache path for pytest, which results in the below warning.
+        # PytestCacheWarning: could not create cache path /usr/local/calibre-web-py3/.pytest_cache/v/cache/nodeids: [Errno 13] Permission denied: '/usr/local/calibre-web-py3/pytest-cache-files-su2iy_u0'
+        # The tests pass, and -p no:cacheprovider makes it so the warning is not displayed
+        run: pytest -p no:cacheprovider -s --splinter-webdriver firefox --splinter-headless
+        working-directory: /usr/local/calibre-web-py3
