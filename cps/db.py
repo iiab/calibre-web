@@ -47,7 +47,7 @@ from flask_babel import gettext as _
 from flask_babel import get_locale
 from flask import flash, g, Flask
 
-from . import logger, ub, isoLanguages
+from . import logger, ub, isoLanguages, lb_search
 from .pagination import Pagination
 from .string_helper import strip_whitespaces
 
@@ -1007,7 +1007,18 @@ class CalibreDB:
     def get_search_results(self, term, config, offset=None, order=None, limit=None, *join):
         order = order[0] if order else [Books.sort]
         pagination = None
-        result = self.search_query(term, config, *join).order_by(*order).all()
+        
+        # search also through the subtitles (for videos)
+        other_terms = lb_search.get_search_terms(term)
+        # lb_search.get_search_terms returns a list of video titles, "term" parameter is expected to be a book/video title
+        term = [term] + other_terms
+
+        result = list()
+        for term_part in term:
+            # the search_query function below only searches for books titles
+            result += self.search_query(term_part, config, *join).order_by(*order).all()
+        # we need to remove duplicates because the same book/video could be found multiple times
+        result = list(set(result))
         result_count = len(result)
         if offset is not None and limit is not None:
             offset = int(offset)
