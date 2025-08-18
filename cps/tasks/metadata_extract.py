@@ -67,8 +67,8 @@ class TaskMetadataExtract(CalibreTask):
                 conn.execute("ALTER TABLE media ADD COLUMN live_status TEXT")
             if "error" not in self.columns:
                 conn.execute("ALTER TABLE media ADD COLUMN error TEXT")
-            query = "SELECT path, duration, live_status FROM media WHERE path LIKE 'http%' AND (error IS NULL OR error = '')"
-            rows = conn.execute(query).fetchall()
+            query = "SELECT path, duration, live_status FROM media WHERE time_created > ? AND path LIKE 'http%' AND (error IS NULL OR error = '')"
+            rows = conn.execute(query, (int(self.start_time.timestamp()),)).fetchall()
             requested_urls = {}
             for path, duration, live_status in rows:
                 if duration is not None and duration > 0:
