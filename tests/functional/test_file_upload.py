@@ -35,7 +35,7 @@ def _(browser, step_context):
 @when("I click on upload and upload the first book")
 def _(browser, step_context):
     """I click on upload and upload the first book"""
-    filename = "files/The_King_In_Yellow.epub"
+    filename = "tests/functional/files/The_King_In_Yellow.epub"
     file = os.path.join(os.getcwd(), filename)
     browser.fill("btn-upload", file)
 
@@ -60,7 +60,7 @@ def test_upload_book_2():
 @when("I click on upload and upload the second book")
 def _(browser, step_context):
     """I click on upload and upload the second book"""
-    filename = "files/The_Count_Of_Monte_Cristo.epub"
+    filename = "tests/functional/files/The_Count_Of_Monte_Cristo.epub"
     file = os.path.join(os.getcwd(), filename)
     browser.fill("btn-upload", file)
 
