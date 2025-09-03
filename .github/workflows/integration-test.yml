@@ -26,7 +26,7 @@ jobs:
       - name: Download metadata.db
         run: |
           mkdir -p library/calibre-web
-          wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
+          wget -O /library/calibre-web/ https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
       - name: Execute Calibre-Web in background
         run: nohup python3 cps.py &
       - name: Verify local website
