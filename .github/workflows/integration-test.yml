@@ -27,7 +27,7 @@ jobs:
         run: |
           sudo mkdir -p /library/calibre-web
           sudo wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
-          sudo wget -O /library/calibre-web/metadata_db_prefs_backup.json https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata_db_prefs_backup.json
+          sudo chmod 777 /library/calibre-web/metadata.db
       - name: Execute Calibre-Web in background
         run: nohup python3 cps.py &
       - name: Verify local website
