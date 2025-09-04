@@ -39,8 +39,5 @@ jobs:
           path: integration-tests-requirements.txt
       - name: Execute Integration Tests for Chrome
         run: pytest -s --splinter-webdriver chrome --splinter-headless
-      - name: Print HTML screenshot
-        if: always()
-        run: cat /home/runner/work/calibre-web/calibre-web/tests.functional.test_file_upload/test_upload_book_2-browser.html
       - name: Execute Integration Tests for Firefox
         run: pytest -s --splinter-webdriver firefox --splinter-headless
