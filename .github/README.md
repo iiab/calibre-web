@@ -176,7 +176,7 @@ To contribute, please check our [Contributing Guidelines](https://github.com/iia
 
 If you encounter bugs or issues, please report them in the [issues section](https://github.com/iiab/calibre-web/issues) of the repository. Be sure to include detailed information about your setup and the problem encountered.
 
-If your problem is generic to the [upstream fork janeczku/calibre-web](https://github.com/janeczku/calibre-web/issues) you may wish to report your issue there.
+If your problem is generic to the [upstream janeczku/calibre-web](https://github.com/janeczku/calibre-web/issues) you may wish to report your issue there.
 
 ### Feature Requests
 
@@ -184,7 +184,7 @@ We welcome suggestions for new features. Please create a new issue in the reposi
 
 ## Additional Resources
 
-- **Documentation**: Comprehensive documentation is available on the [Calibre-Web wiki](https://github.com/iiab/calibre-web/wiki).
+- **Documentation**: Comprehensive documentation is available on the [IIAB Calibre-Web wiki](https://github.com/iiab/calibre-web/wiki) and the [upstream Calibre-Web wiki](https://github.com/janeczku/calibre-web/wiki/).
 - **Community Contributions**: Explore the [community contributions](https://github.com/iiab/calibre-web/pulls) to see ongoing work and how you can get involved.
 
 ---
