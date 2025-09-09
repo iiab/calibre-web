@@ -2,53 +2,34 @@
 
 Calibre-Web is a web app that offers a clean and intuitive interface for browsing, reading, and downloading eBooks using a valid [Calibre](https://calibre-ebook.com) database.
 
-*This software is a fork of [Calibre-Web](https://github.com/janeczku/calibre-web) designed to be run inside of an Internet-in-a-Box.*
+*This software is a friendly fork of [Calibre-Web](https://github.com/janeczku/calibre-web) designed to be run inside of an Internet-in-a-Box.*
 
 ![Main screen](https://github.com/janeczku/calibre-web/wiki/images/main_screen.png)
 
 ## Features
 
-- Modern and responsive Bootstrap 3 HTML5 interface
-- Full graphical setup
-- Comprehensive user management with fine-grained per-user permissions
-- Admin interface
-- Multilingual user interface supporting 20+ languages ([supported languages](https://github.com/iiab/calibre-web/wiki/Translation-Status))
-- OPDS feed for eBook reader apps
-- Advanced search and filtering options
-- Custom book collection (shelves) creation
-- eBook metadata editing and deletion support
-- Metadata download from various sources (extensible via plugins)
-- eBook conversion through Calibre binaries
-- eBook download restriction to logged-in users
-- Public user registration support
-- Send eBooks to E-Readers with a single click
-- Sync Kobo devices with your Calibre library
-- In-browser eBook reading support for multiple formats
-- Upload new books in various formats, including audio formats
-- Calibre Custom Columns support
-- Content hiding based on categories and Custom Column content per user
-- Self-update capability
-- "Magic Link" login for easy access on eReaders
-- LDAP, Google/GitHub OAuth, and proxy authentication support
+- Mainline [Calibre-Web features](https://github.com/janeczku/calibre-web?tab=readme-ov-file#features)
+- Not just books but also learning [videos, audiocasts and images](https://github.com/iiab/calibre-web/wiki#videos-and-images) most needed by your community or family
+- Downloading [online media](https://github.com/iiab/calibre-web/wiki#download-online-media)
 
 ## Installation
 
-1. Installation instructions for IIAB Calibre-Web are found here:
+1. If you don't have an existing IIAB, start here:
 
    https://github.com/iiab/calibre-web/wiki#wrench-installation
 
-2. Technical Background explaining Calibre-Web on Internet-in-a-Box (IIAB):
+2. Installing on an existing Internet-in-a-Box (IIAB):
 
    https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst
 
 ## Quick Start
 
 0. Read the [NEW Install Instructions](#installation) above for IIAB Calibre-Web!
-1. ~**Access Calibre-Web**: Open your browser and navigate to:~
+1. **Access Calibre-Web**: Open your browser and navigate to:
    ```
    http://localhost:8083
    ```
-   ~or for the OPDS catalog:~
+   or for the OPDS catalog:
    ```
    http://localhost:8083/opds
    ```
@@ -66,7 +47,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 ## Requirements
 
-- **IIAB**: IIAB Calibre-Web is designed for running on top of an existing Internet-in-a-Box install
+- **IIAB**: IIAB Calibre-Web is designed for running on top of an Internet-in-a-Box install
 - **Python Version**: Ensure you have Python 3.7 or newer.
 - **Imagemagick**: Required for cover extraction from EPUBs. Windows users may also need to install [Ghostscript](https://ghostscript.com/releases/gsdnld.html) for PDF cover extraction.
 - **Optional Tools**:
@@ -79,7 +60,10 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 ## Contributor Recognition
 
-We would like to thank all the [contributors](https://github.com/iiab/calibre-web/graphs/contributors) and maintainers of Calibre-Web for their valuable input and dedication to the project. Your contributions are greatly appreciated.
+We would like to thank all the contributors and maintainers of Calibre-Web for their valuable input and dedication to the project. Your contributions are greatly appreciated:
+
+- [janeczku/calibre-web](https://github.com/janeczku/calibre-web/graphs/contributors)
+- [iiab/calibre-web](https://github.com/iiab/calibre-web/graphs/contributors)
 
 ## Integration tests
 
@@ -191,6 +175,8 @@ To contribute, please check our [Contributing Guidelines](https://github.com/iia
 ### Reporting Bugs
 
 If you encounter bugs or issues, please report them in the [issues section](https://github.com/iiab/calibre-web/issues) of the repository. Be sure to include detailed information about your setup and the problem encountered.
+
+If your problem is generic to the [upstream fork janeczku/calibre-web](https://github.com/janeczku/calibre-web/issues) you may wish to report your issue there.
 
 ### Feature Requests
 
