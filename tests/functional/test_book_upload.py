@@ -60,7 +60,7 @@ def test_upload_book_2():
 @when("I click on upload and upload the second book")
 def _(browser, step_context):
     """I click on upload and upload the second book"""
-    filename = "tests/functional/files/The_Count_Of_Monte_Cristo.epub"
+    filename = "tests/functional/files/The_Black_Tulip.epub"
     file = os.path.join(os.getcwd(), filename)
     browser.fill("btn-upload", file)
 
@@ -68,7 +68,7 @@ def _(browser, step_context):
 @then("I should see book 2")
 def _(browser):
     """I should see book 2."""
-    assert browser.find_by_id("title").value == "The Count of Monte Cristo", (
+    assert browser.find_by_id("title").value == "The black tulip", (
         "Expected to see second book title present"
     )
 
