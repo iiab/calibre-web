@@ -23,6 +23,12 @@ jobs:
           path: requirements.txt
       - name: Download dummy database
         run: wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
+      - name: Download metadata.db
+        run: |
+          sudo mkdir -p /library/calibre-web
+          sudo wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
+          sudo chmod 777 /library/calibre-web
+          sudo chmod 777 /library/calibre-web/metadata.db
       - name: Execute Calibre-Web in background
         run: nohup python3 cps.py &
       - name: Verify local website

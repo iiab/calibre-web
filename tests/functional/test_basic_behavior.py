@@ -65,10 +65,6 @@ def _(browser, step_context):
 @then("see homepage information")
 def _(browser):
     """see homepage information."""
-    print("!!!!!!!")
-    print(browser.title)
-    print(browser.url)
-    print("!!!!!!!")
     assert browser.is_text_present("Books"), "Book test"
 
 
