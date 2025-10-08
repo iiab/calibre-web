@@ -16,34 +16,110 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 
 1. If you don't have an existing IIAB, start here:
 
-   https://github.com/iiab/calibre-web/wiki#wrench-installation
+   <https://github.com/iiab/calibre-web/wiki#wrench-installation>
 
 2. Installing on an existing Internet-in-a-Box (IIAB):
 
-   https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst
+   <https://github.com/iiab/iiab/blob/master/roles/calibre-web/README.rst>
 
 ## Quick Start
 
 0. Read the [NEW Install Instructions](#installation) above for IIAB Calibre-Web!
 1. **Access Calibre-Web**: Open your browser and navigate to:
+
    ```
    http://localhost:8083
    ```
+
    or for the OPDS catalog:
+
    ```
    http://localhost:8083/opds
    ```
+
 2. **Log in**: Use the default admin credentials:
    - **Username:** Admin
    - **Password:** changeme
 3. **Database Setup**: If you do not have a Calibre database, download a sample from:
+
    ```
    https://github.com/iiab/calibre-web/raw/master/library/metadata.db
    ```
+
    Move it out of the Calibre-Web folder to avoid overwriting during updates.
 4. **Configure Calibre Database**: In the admin interface, set the `Location of Calibre database` to the path of the folder containing your Calibre library (where `metadata.db` is located) and click "Save".
 5. **Google Drive Integration**: For hosting your Calibre library on Google Drive, refer to the [Google Drive integration guide](https://github.com/iiab/calibre-web/wiki/G-Drive-Setup#using-google-drive-integration).
 6. **Admin Configuration**: Configure your instance via the admin page, referring to the [Basic Configuration](https://github.com/iiab/calibre-web/wiki/Configuration#basic-configuration) and [UI Configuration](https://github.com/iiab/calibre-web/wiki/Configuration#ui-configuration) guides.
+
+## Setup for IIAB-less Calibre-Web
+
+Please note that this version of Calibre-Web is primarily for installation through IIAB. However, we do maintain this documentation to allow an IIAB-less setup of Calibre-Web. Currently this is done solely for our integration test workflow. This setup has been tested on openSUSE Tumbleweed.
+
+1. Clone the repository
+
+```bash
+https://github.com/iiab/calibre-web.git
+```
+
+2. Enter the directory where you clone the repository
+
+```bash
+cd calibre-web/
+```
+
+3. Create the virtual environment and activate it
+
+```bash
+python3 -m venv venv
+source /venv/bin/activate
+```
+
+4. Install all the dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+5. Download the database
+
+```bash
+wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
+```
+
+6. Create the needed library directories, and download metadata.db
+
+```bash
+sudo mkdir -p /library/calibre-web
+sudo mkdir /library/downloads/
+sudo wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
+sudo chown user_running_calibre-web /library/calibre-web
+sudo chown user_running_calibre-web /library/calibre-web/metadata.db
+sudo chown user_running_calibre-web /library/downloads/
+```
+
+Make sure to replace user_running_calibre-web with the correct username.
+
+7. Create the log file
+
+```bash
+sudo touch /var/log/xklb.log
+sudo chown user_running_calibre-web /var/log/xklb.log
+```
+
+Make sure to replace user_running_calibre-web with the correct username.
+
+8. Copy the lb-wrapper script file to /user/local/bin
+
+```bash
+sudo cp ./scripts/lb-wrapper /usr/local/bin
+sudo chmod a+x /usr/local/bin/lb-wrapper
+```
+
+9. Finally, run calibre-web
+
+```bash
+nohup python3 cps.py &
+```
 
 ## Requirements
 
@@ -51,8 +127,8 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 - **Python Version**: Ensure you have Python 3.7 or newer.
 - **Imagemagick**: Required for cover extraction from EPUBs. Windows users may also need to install [Ghostscript](https://ghostscript.com/releases/gsdnld.html) for PDF cover extraction.
 - **Optional Tools**:
-   - **Calibre desktop program**: Recommended for on-the-fly conversion and metadata editing. Set the path to Calibre’s converter tool on the setup page.
-   - **Kepubify tool**: Needed for Kobo device support. Download the tool and place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows.
+  - **Calibre desktop program**: Recommended for on-the-fly conversion and metadata editing. Set the path to Calibre’s converter tool on the setup page.
+  - **Kepubify tool**: Needed for Kobo device support. Download the tool and place the binary in `/opt/kepubify` on Linux or `C:\Program Files\kepubify` on Windows.
 
 ## Docker Images
 
