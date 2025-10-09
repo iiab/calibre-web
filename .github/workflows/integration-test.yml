@@ -23,12 +23,22 @@ jobs:
           path: requirements.txt
       - name: Download dummy database
         run: wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
-      - name: Download metadata.db
+      - name: Set up library directories and download metadata.db
         run: |
           sudo mkdir -p /library/calibre-web
+          sudo mkdir /library/downloads/
           sudo wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
-          sudo chmod 777 /library/calibre-web
-          sudo chmod 777 /library/calibre-web/metadata.db
+          sudo chown runner /library/calibre-web
+          sudo chown runner /library/calibre-web/metadata.db
+          sudo chown runner /library/downloads/
+      - name: Create the log file
+        run: |
+          sudo touch /var/log/xklb.log
+          sudo chown runner /var/log/xklb.log
+      - name: Copy the lb-wrapper script to /var/local/bin
+        run: |
+          sudo cp ./scripts/lb-wrapper /usr/local/bin
+          sudo chmod a+x /usr/local/bin/lb-wrapper
       - name: Execute Calibre-Web in background
         run: nohup python3 cps.py &
       - name: Verify local website

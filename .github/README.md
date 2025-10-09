@@ -121,6 +121,11 @@ sudo chmod a+x /usr/local/bin/lb-wrapper
 nohup python3 cps.py &
 ```
 
+10. Open your favorite browser to localhost:8083. You should see the Internet-in-a-Box branded Calibre-Web running. Login with:
+
+- Username: admin
+- Password: changeme
+
 ## Requirements
 
 - **IIAB**: IIAB Calibre-Web is designed for running on top of an Internet-in-a-Box install
