@@ -1,0 +1,36 @@
+#!/bin/bash
+
+TIMESTAMP_FILE="yt-dlp_nightly_update.timestamp"
+THRESHOLD_HOURS=36
+
+THRESHOLD_SECONDS=$((THRESHOLD_HOURS * 3600))
+
+if [ ! -f "$TIMESTAMP_FILE" ]; then
+    NEEDS_UPDATE=1
+else
+    NOW=$(date +%s)
+    LAST_UPDATE=$(stat -c %Y "$TIMESTAMP_FILE")
+
+    AGE_SECONDS=$((NOW - LAST_UPDATE))
+
+    if [ "$AGE_SECONDS" -gt "$THRESHOLD_SECONDS" ]; then
+        NEEDS_UPDATE=1
+    else
+        NEEDS_UPDATE=0
+    fi
+fi
+
+if [ "$NEEDS_UPDATE" -eq 1 ]; then
+    echo "Updating yt-dlp nightly..."
+    pipx inject --pip-args="--upgrade --pre" -f library yt-dlp[default]
+
+    if [ $? -eq 0 ]; then
+        touch "$TIMESTAMP_FILE"
+        echo "Update successful. New timestamp recorded."
+    else
+        echo "Error: yt-dlp update failed. Timestamp was NOT updated."
+    fi
+else
+    AGE_HOURS=$((AGE_SECONDS / 3600))
+    echo "Update threshold not met (Age: ${AGE_HOURS}h / Threshold: ${THRESHOLD_HOURS}h). Skipping."
+fi

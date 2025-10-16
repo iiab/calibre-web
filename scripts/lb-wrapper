@@ -78,6 +78,9 @@ fi
 #     exit 1
 # fi
 
+# Update yt-dlp if necessary
+./yt-updater
+
 if ! command -v "lb"; then
     log "Error" "xklb could not be found. Please install xklb and try again."
     exit 1
