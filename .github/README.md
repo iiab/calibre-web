@@ -108,11 +108,13 @@ sudo chown user_running_calibre-web /var/log/xklb.log
 
 Make sure to replace user_running_calibre-web with the correct username.
 
-8. Copy the lb-wrapper script file to /user/local/bin
+8. Copy the lb-wrapper and yt-updater scripts to /usr/local/bin
 
 ```bash
 sudo cp ./scripts/lb-wrapper /usr/local/bin
+sudo cp ./scripts/yt-updater /usr/local/bin
 sudo chmod a+x /usr/local/bin/lb-wrapper
+sudo chmod a+x /usr/local/bin/yt-updater
 ```
 
 9. Finally, run calibre-web
