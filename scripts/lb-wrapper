@@ -82,7 +82,7 @@ fi
 
 # Update yt-dlp if necessary; nightly is considered more stable by the devs because sites change often
 # https://old.reddit.com/r/youtubedl/comments/1lncsh8/what_are_the_drawbacks_of_nightly_version_why_not/
-$SCRIPT_DIR/yt-updater
+$SCRIPT_DIR/yt-dlp-updater
 
 if ! command -v "lb"; then
     log "Error" "xklb could not be found. Please install xklb and try again."
