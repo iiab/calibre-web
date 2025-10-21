@@ -2,7 +2,7 @@
 # Uses a timestamp file to prevent checking updates too frequently
 
 SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
-TIMESTAMP_FILE="$SCRIPT_DIR/stamp-yt-update.timer"
+TIMESTAMP_FILE="$SCRIPT_DIR/stamp-yt-dlp-update.timer"
 THRESHOLD_HOURS=36
 
 THRESHOLD_SECONDS=$((THRESHOLD_HOURS * 3600))
