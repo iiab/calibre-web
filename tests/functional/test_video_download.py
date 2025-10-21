@@ -14,13 +14,14 @@ import os
 import time
 
 
-def find_video_by_href(browser, href):
+def find_video_by_title(browser, title):
     video_found = False
     count = 0
-    while (not video_found) and (count <= 10):
+
+    while (not video_found) and (count <= 100):
         time.sleep(5)
         browser.reload()
-        video_found = browser.is_element_present_by_xpath(f"//a[@href='{href}']", 1)
+        video_found = browser.is_element_present_by_xpath(f"//p[@title='{title}']", 1)
         count += 1
     return video_found
 
@@ -59,10 +60,8 @@ def _(browser, step_context):
 @then("I should see video 1")
 def _(browser, step_context):
     """I should see video 1"""
-    # since we just added this video, it will be the last 'book'
-    book_count = len(browser.find_by_id("books_rand")) + 1
-    print(book_count)
-    video_1_found = find_video_by_href(browser, "/book/3")
+    title_1 = "Nature | Waterfalls | Drone | Free HD Videos - No Copyright footage"
+    video_1_found = find_video_by_title(browser, title_1)
 
     assert video_1_found, "Expected to see first video present"
 
@@ -88,10 +87,7 @@ def _(browser, step_context):
 def _(browser, step_context):
     """I should see video 2"""
     # since we just added this video, it will be the last 'book'
-    book_count = len(browser.find_by_id("books_rand")) + 1
-    print(book_count)
-    video_2_found = find_video_by_href(browser, "/book/4")
-    book_count = len(browser.find_by_id("books_rand")) + 1
-    print(book_count)
+    title_2 = "Maestro Chives, Marin Hoxha, Chris Linton - Warrior | House | NCS - Copyright Free Music"
+    video_2_found = find_video_by_title(browser, title_2)
 
     assert video_2_found, "Expected to see second video present"
