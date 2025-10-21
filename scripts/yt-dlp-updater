@@ -1,0 +1,39 @@
+#!/bin/bash
+# Uses a timestamp file to prevent checking updates too frequently
+
+SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+TIMESTAMP_FILE="$SCRIPT_DIR/stamp-yt-dlp-update.timer"
+THRESHOLD_HOURS=36
+
+THRESHOLD_SECONDS=$((THRESHOLD_HOURS * 3600))
+
+if [ ! -f "$TIMESTAMP_FILE" ]; then
+    NEEDS_UPDATE=1
+else
+    NOW=$(date +%s)
+    LAST_UPDATE=$(stat -c %Y "$TIMESTAMP_FILE")
+
+    AGE_SECONDS=$((NOW - LAST_UPDATE))
+
+    if [ "$AGE_SECONDS" -gt "$THRESHOLD_SECONDS" ]; then
+        NEEDS_UPDATE=1
+    else
+        NEEDS_UPDATE=0
+    fi
+fi
+
+if [ "$NEEDS_UPDATE" -eq 1 ]; then
+    echo "Updating yt-dlp nightly..."
+    # https://github.com/iiab/iiab/blob/690505daf540b2013a69a9368dd76e3d421d6cb6/roles/calibre-web/tasks/install.yml#L103
+    pipx inject --pip-args="--upgrade --pre" -f yt-dlp[default]
+
+    if [ $? -eq 0 ]; then
+        touch "$TIMESTAMP_FILE"
+        echo "Update successful. New timestamp recorded."
+    else
+        echo "Error: yt-dlp update failed. Timestamp was NOT updated."
+    fi
+else
+    AGE_HOURS=$((AGE_SECONDS / 3600))
+    echo "Update threshold not met (Age: ${AGE_HOURS}h / Threshold: ${THRESHOLD_HOURS}h). Skipping."
+fi

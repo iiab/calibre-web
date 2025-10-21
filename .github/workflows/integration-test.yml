@@ -39,6 +39,8 @@ jobs:
         run: |
           sudo cp ./scripts/lb-wrapper /usr/local/bin
           sudo chmod a+x /usr/local/bin/lb-wrapper
+          sudo cp ./scripts/yt-dlp-updater /usr/local/bin
+          sudo chmod a+x /usr/local/bin/yt-dlp-updater
       - name: Execute Calibre-Web in background
         run: nohup python3 cps.py &
       - name: Verify local website
