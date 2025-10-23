@@ -12,11 +12,7 @@ from urllib.parse import urljoin
 from selenium import webdriver
 import os
 
-
-@pytest.fixture
-def step_context():
-    """Fixture to save information to use through steps."""
-    return {}
+from tests.functional.conftest import login_if_not_logged_in, visit_website
 
 
 @scenario("book_upload.feature", "Upload book 1")
@@ -28,8 +24,8 @@ def test_upload_book_1():
 def _(browser, step_context):
     """Calibre-Web is running and I am logged in as admin"""
     step_context["ip_address"] = "localhost:8083"
-    url = urljoin("".join(["http://", str(step_context["ip_address"])]), "/")
-    browser.visit(url)
+    visit_website(browser, step_context)
+    login_if_not_logged_in(browser, "Admin", "changeme")
 
 
 @when("I click on upload and upload the first book")

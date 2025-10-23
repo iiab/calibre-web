@@ -13,17 +13,11 @@ from selenium import webdriver
 import os
 import time
 
-
-def find_video_by_title(browser, title):
-    video_found = False
-    count = 0
-
-    while (not video_found) and (count <= 100):
-        time.sleep(5)
-        browser.reload()
-        video_found = browser.is_element_present_by_xpath(f"//p[@title='{title}']", 1)
-        count += 1
-    return video_found
+from tests.functional.conftest import (
+    find_video_by_title,
+    login_if_not_logged_in,
+    visit_website,
+)
 
 
 @pytest.fixture
@@ -41,8 +35,8 @@ def test_video_download_1():
 def _(browser, step_context):
     """Calibre-Web is running and I am logged in as admin"""
     step_context["ip_address"] = "localhost:8083"
-    url = urljoin("".join(["http://", str(step_context["ip_address"])]), "/")
-    browser.visit(url)
+    visit_website(browser, step_context)
+    login_if_not_logged_in(browser, "Admin", "changeme")
 
 
 @when("I click on 'Download to IIAB' and download the first video")
