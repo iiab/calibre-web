@@ -10,33 +10,11 @@ from pytest_bdd import (
 
 from urllib.parse import urljoin
 from selenium import webdriver
-
-
-@pytest.fixture(scope="session")
-def splinter_driver_kwargs(splinter_webdriver):
-    """Override Chrome WebDriver options"""
-    if splinter_webdriver == "chrome":
-        chrome_options = webdriver.ChromeOptions()
-
-        # List of Chromium Command Line Switches
-        # https://peter.sh/experiments/chromium-command-line-switches/
-        chrome_options.add_argument("--no-sandbox")
-
-        return {"options": chrome_options}
-
-    elif splinter_webdriver == "firefox":
-        firefox_options = webdriver.FirefoxOptions()
-        return {"options": firefox_options}
-    else:
-        raise ValueError(
-            "Invalid browser passed to --splinter_Wewbdriver. Only Chrome and Firefox are allowed"
-        )
-
-
-@pytest.fixture
-def step_context():
-    """Fixture to save information to use through steps."""
-    return {}
+from tests.functional.conftest import (
+    login_if_not_logged_in,
+    login_with_username_and_password,
+    visit_website,
+)
 
 
 @scenario("basic_behavior.feature", "Home Page")
@@ -47,14 +25,12 @@ def test_home_page():
 @given("Calibre-Web is running")
 def _(step_context):
     """Calibre-Web is running."""
-    step_context["ip_address"] = "localhost:8083"
 
 
 @when("I go to the home page")
 def _(browser, step_context):
     """I go to the home page."""
-    url = urljoin("".join(["http://", str(step_context["ip_address"])]), "/")
-    browser.visit(url)
+    visit_website(browser, step_context)
 
 
 @then("I should not see the error message")
@@ -65,7 +41,7 @@ def _(browser, step_context):
 @then("see homepage information")
 def _(browser):
     """see homepage information."""
-    assert browser.is_text_present("Books"), "Book test"
+    assert browser.is_text_present("Books"), "Page successfully loaded!"
 
 
 @scenario("basic_behavior.feature", "Login")
@@ -76,21 +52,13 @@ def test_login():
 @given("I visit the Calibre-Web homepage")
 def _(browser, step_context):
     """I visit the Calibre-Web homepage."""
-    step_context["ip_address"] = "localhost:8083"
-    url = urljoin("".join(["http://", str(step_context["ip_address"])]), "/")
-    browser.visit(url)
+    visit_website(browser, step_context)
 
 
 @when("I login with valid credentials")
 def _(browser, step_context):
     """I login with valid credentials."""
-    guest = browser.find_by_id("top_user")
-    guest.click()
-    browser.fill("username", "Admin")
-    browser.fill("password", "changeme")
-    button = browser.find_by_name("submit")
-    # Interact with elements
-    button.click()
+    login_with_username_and_password(browser, "Admin", "changeme")
 
 
 @then("I should see the success message")
