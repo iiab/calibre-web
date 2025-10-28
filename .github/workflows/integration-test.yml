@@ -45,6 +45,8 @@ jobs:
         run: nohup python3 cps.py &
       - name: Verify local website
         run: curl -L localhost:8083
+      - name: Ping youtube
+        run: ping www.youtube.com
       - name: Install Python dependencies for testing
         uses: py-actions/py-dependency-install@v4
         with:
