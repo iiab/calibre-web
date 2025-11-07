@@ -2,14 +2,12 @@ Feature: Create User
   Testing create User
 
 
-  Scenario: Create user 1
+  Scenario Outline: Create users
       Given Calibre-Web is running and I am logged in as admin
-      When I click on Admin button and create user 1
+      When I click on Admin button and create user with <username>, <password>, and <email>
+      Then I should see that <username> is created
 
-      Then I should see that user 1 is created
-
-  Scenario: Create user 2
-      Given Calibre-Web is running and I am logged in as admin
-      When I click on Admin button and create user 2
-
-      Then I should see that user 2 is created
+      Examples:
+      | username | password  | email         |
+      | chloe    | Chloe123! | chloe@iiab.io |
+      | ella     | Ella123!  | ella@iiab.io  |
