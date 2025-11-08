@@ -1,0 +1,51 @@
+name: 'Calibre-Web setup'
+description: 'Set up Calibre-Web'
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create Python environment
+      shell: bash
+      run: |
+        python3 -m venv calibre-web-env
+        source calibre-web-env/bin/activate
+    - name: Install Python dependencies for testing
+      uses: py-actions/py-dependency-install@v4
+      with:
+        path: requirements.txt
+    - name: Download dummy database
+      shell: bash
+      run: wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
+    - name: Set up library directories and download metadata.db
+      shell: bash
+      run: |
+        sudo mkdir -p /library/calibre-web
+        sudo mkdir /library/downloads/
+        sudo wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
+        sudo chown runner /library/calibre-web
+        sudo chown runner /library/calibre-web/metadata.db
+        sudo chown runner /library/downloads/
+    - name: Create the log file
+      shell: bash
+      run: |
+        sudo touch /var/log/xklb.log
+        sudo chown runner /var/log/xklb.log
+    - name: Copy the lb-wrapper script to /var/local/bin
+      shell: bash
+      run: |
+        sudo cp ./scripts/lb-wrapper /usr/local/bin
+        sudo chmod a+x /usr/local/bin/lb-wrapper
+        sudo cp ./scripts/yt-dlp-updater /usr/local/bin
+        sudo chmod a+x /usr/local/bin/yt-dlp-updater
+    - name: Execute Calibre-Web in background
+      shell: bash
+      run: nohup python3 cps.py &
+    - name: Verify local website
+      shell: bash
+      run: curl -L localhost:8083
+    - name: Install Python dependencies for testing
+      uses: py-actions/py-dependency-install@v4
+      with:
+        path: integration-tests-requirements.txt
+
+
