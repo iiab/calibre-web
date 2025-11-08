@@ -30,7 +30,7 @@ runs:
       run: |
         sudo touch /var/log/xklb.log
         sudo chown runner /var/log/xklb.log
-    - name: Copy the lb-wrapper script to /var/local/bin
+    - name: Copy the lb-wrapper script to /usr/local/bin
       shell: bash
       run: |
         sudo cp ./scripts/lb-wrapper /usr/local/bin
