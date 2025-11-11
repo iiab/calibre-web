@@ -2,54 +2,25 @@ name: Integration tests
 run-name: Integration tests
 on: [push]
 jobs:
-  integration-test:
+  integration-test-chrome:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v4
+      - uses: ./.github/workflows/calibre-web-setup
       - name: Install Chrome
         uses: browser-actions/setup-chrome@v1
       - run: chrome --version
+      - name: Execute Integration Tests for Chrome
+        run: pytest -s --splinter-webdriver chrome --splinter-headless
+  integration-test-firefox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+      - uses: ./.github/workflows/calibre-web-setup
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
       - run: firefox --version
-      - name: Create Python environment
-        run: |
-          python3 -m venv calibre-web-env
-          source calibre-web-env/bin/activate
-      - name: Install Python dependencies for testing
-        uses: py-actions/py-dependency-install@v4
-        with:
-          path: requirements.txt
-      - name: Download dummy database
-        run: wget -O app.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/app.db
-      - name: Set up library directories and download metadata.db
-        run: |
-          sudo mkdir -p /library/calibre-web
-          sudo mkdir /library/downloads/
-          sudo wget -O /library/calibre-web/metadata.db https://github.com/iiab/iiab/raw/refs/heads/master/roles/calibre-web/files/metadata.db
-          sudo chown runner /library/calibre-web
-          sudo chown runner /library/calibre-web/metadata.db
-          sudo chown runner /library/downloads/
-      - name: Create the log file
-        run: |
-          sudo touch /var/log/xklb.log
-          sudo chown runner /var/log/xklb.log
-      - name: Copy the lb-wrapper script to /var/local/bin
-        run: |
-          sudo cp ./scripts/lb-wrapper /usr/local/bin
-          sudo chmod a+x /usr/local/bin/lb-wrapper
-          sudo cp ./scripts/yt-dlp-updater /usr/local/bin
-          sudo chmod a+x /usr/local/bin/yt-dlp-updater
-      - name: Execute Calibre-Web in background
-        run: nohup python3 cps.py &
-      - name: Verify local website
-        run: curl -L localhost:8083
-      - name: Install Python dependencies for testing
-        uses: py-actions/py-dependency-install@v4
-        with:
-          path: integration-tests-requirements.txt
-      - name: Execute Integration Tests for Chrome
-        run: pytest -s --splinter-webdriver chrome --splinter-headless
       - name: Execute Integration Tests for Firefox
         run: pytest -s --splinter-webdriver firefox --splinter-headless
