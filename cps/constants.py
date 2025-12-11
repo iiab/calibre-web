@@ -37,9 +37,12 @@ STATIC_DIR          = os.path.join(BASE_DIR, 'cps', 'static')
 TEMPLATES_DIR       = os.path.join(BASE_DIR, 'cps', 'templates')
 TRANSLATIONS_DIR    = os.path.join(BASE_DIR, 'cps', 'translations')
 
-# Cache dir - use CACHE_DIR environment variable, otherwise use the default directory: cps/cache
+# Cache dir - use CACHE_DIRECTORY environment variable, otherwise CACHE_DIR (for backwards compatibility),
+# otherwise use the default directory: cps/cache
 DEFAULT_CACHE_DIR   = os.path.join(BASE_DIR, 'cps', 'cache')
-CACHE_DIR           = os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
+CACHE_DIRECTORY = os.environ.get(
+    'CACHE_DIRECTORY', os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
+)
 
 # 2023-11-15: See scripts/lb-wrapper which uses xklb's 'lb tubeadd ...' to save
 # an initial metadata manifest (prior to downloading videos or media) here:
