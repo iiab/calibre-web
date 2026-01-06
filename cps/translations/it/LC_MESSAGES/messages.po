@@ -2,13 +2,13 @@
 # Copyright (C) 2016 Smart Cities Community
 # This file is distributed under the same license as the Calibre-Web
 # Juan F. Villa <juan.villa@paisdelconocimiento.org>, 2016.
-# SPDX-FileCopyrightText: 2023, 2024, 2025 Massimo Pissarello <mapi68@gmail.com>
+# SPDX-FileCopyrightText: 2023, 2024, 2025, 2026 Massimo Pissarello <mapi68@gmail.com>
 msgid ""
 msgstr ""
 "Project-Id-Version:  Calibre-Web\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2025-12-07 14:32+0100\n"
-"PO-Revision-Date: 2025-12-07 04:05+0100\n"
+"POT-Creation-Date: 2025-12-14 14:44+0100\n"
+"PO-Revision-Date: 2026-01-04 02:22+0100\n"
 "Last-Translator: Massimo Pissarello <mapi68@gmail.com>\n"
 "Language: it\n"
 "Language-Team: Italian <>\n"
@@ -16,7 +16,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Generated-By: Babel 2.17.0\n"
+"Generated-By: Babel 2.15.0\n"
 
 #: cps/about.py:85
 msgid "Statistics"
@@ -966,7 +966,7 @@ msgstr "Errore OAuth di Google, riprova più tardi."
 msgid "Google Oauth error: {}"
 msgstr "Errore OAuth di Google: {}"
 
-#: cps/opds.py:308
+#: cps/opds.py:307
 #, python-brace-format
 msgid "{} Stars"
 msgstr "{} stelle"
@@ -1925,12 +1925,12 @@ msgstr "Pubblicato"
 msgid "Description:"
 msgstr "Descrizione:"
 
-#: cps/templates/basic_index.html:7 cps/templates/layout.html:174
+#: cps/templates/basic_index.html:7 cps/templates/layout.html:173
 msgid "Previous"
 msgstr "Precedente"
 
 #: cps/templates/basic_index.html:12 cps/templates/feed.xml:22
-#: cps/templates/layout.html:189
+#: cps/templates/layout.html:187
 msgid "Next"
 msgstr "Successivo"
 
@@ -1990,7 +1990,7 @@ msgid "Uploading..."
 msgstr "Caricamento in corso..."
 
 #: cps/templates/book_edit.html:53 cps/templates/book_edit.html:257
-#: cps/templates/layout.html:79 cps/templates/layout.html:205
+#: cps/templates/layout.html:79 cps/templates/layout.html:203
 #: cps/templates/modal_dialogs.html:34 cps/templates/user_edit.html:163
 msgid "Close"
 msgstr "Chiudi"
@@ -3039,7 +3039,7 @@ msgstr "Naviga"
 msgid "About"
 msgstr "Informazioni su"
 
-#: cps/templates/layout.html:201
+#: cps/templates/layout.html:199
 msgid "Book Details"
 msgstr "Dettagli del libro"
 
@@ -3181,7 +3181,7 @@ msgstr "Seppia"
 
 #: cps/templates/read.html:95
 msgid "Amber"
-msgstr ""
+msgstr "Ambra"
 
 #: cps/templates/read.html:97
 msgid "Black"
@@ -3193,11 +3193,11 @@ msgstr "Adatta il testo quando le barre laterali sono aperte."
 
 #: cps/templates/read.html:114
 msgid "Show pages count"
-msgstr ""
+msgstr "Mostra conteggio delle pagine"
 
 #: cps/templates/read.html:118
 msgid "Font Size"
-msgstr ""
+msgstr "Dimensione carattere"
 
 #: cps/templates/read.html:126
 msgid "Font"
