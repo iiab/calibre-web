@@ -208,6 +208,41 @@ def update_view():
     return "1", 200
 
 
+@web.route("/ajax/comment/<int:book_id>", methods=['POST'])
+@user_login_required
+def post_comment(book_id):
+    comment_text = request.form.get("comment")
+    if not comment_text:
+        return _("Missing comment text"), 400
+
+    new_comment = ub.VideoComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
+    ub.session.add(new_comment)
+    ub.session_commit("Comment by user {} for book {} created".format(current_user.id, book_id))
+    return ""
+
+
+@web.route("/ajax/rate/<int:book_id>", methods=['POST'])
+@user_login_required
+def post_rate(book_id):
+    rating_val = request.form.get("rating", type=int)
+    if rating_val not in [1, -1, 0]:
+        return _("Invalid rating value"), 400
+
+    existing = ub.session.query(ub.VideoRatings).filter(ub.VideoRatings.user_id == int(current_user.id),
+                                                        ub.VideoRatings.book_id == book_id).first()
+    if existing:
+        if rating_val == 0:
+            ub.session.delete(existing)
+        else:
+            existing.rating = rating_val
+    elif rating_val != 0:
+        new_rating = ub.VideoRatings(user_id=int(current_user.id), book_id=book_id, rating=rating_val)
+        ub.session.add(new_rating)
+
+    ub.session_commit("Rating by user {} for book {} updated".format(current_user.id, book_id))
+    return ""
+
+
 '''
 @web.route("/ajax/getcomic/<int:book_id>/<book_format>/<int:page>")
 @user_login_required
@@ -1710,6 +1745,12 @@ def show_book(book_id):
                 entry.video_entries.append(media_format.format.lower())
             if media_format.format.lower() in constants.EXTENSIONS_IMAGE:
                 entry.image_entries.append(media_format.format.lower())
+
+        entry.user_comments = ub.session.query(ub.VideoComments).filter(ub.VideoComments.book_id == book_id).order_by(ub.VideoComments.created_at.desc()).all()
+        if current_user.is_authenticated:
+            entry.user_rating = ub.session.query(ub.VideoRatings).filter(ub.VideoRatings.book_id == book_id, ub.VideoRatings.user_id == int(current_user.id)).first()
+        else:
+            entry.user_rating = None
 
         return render_title_template('detail.html',
                                      entry=entry,
