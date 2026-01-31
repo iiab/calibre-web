@@ -3,7 +3,7 @@ import re
 import requests
 import select
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_babel import lazy_gettext as N_, gettext as _
 
 from cps.constants import XKLB_DB_FILE
@@ -25,14 +25,14 @@ class TaskDownload(CalibreTask):
         self.shelf_id = shelf_id
         self.duration = datetime.utcfromtimestamp(int(duration)).strftime("%H:%M:%S") if duration else "unknown"
         self.live_status = live_status
-        self.start_time = self.end_time = datetime.now()
+        self.start_time = self.end_time = datetime.now(timezone.utc)
         self.stat = STAT_WAITING
         self.progress = 0
 
     def run(self, worker_thread):
         """Run the download task"""
         self.worker_thread = worker_thread
-        self.start_time = self.end_time = datetime.now()
+        self.end_time = datetime.now(timezone.utc)
         self.stat = STAT_STARTED
         self.progress = 0
 
@@ -53,14 +53,14 @@ class TaskDownload(CalibreTask):
 
                 complete_progress_cycle = 0
 
-                last_progress_time = datetime.now()
+                last_progress_time = datetime.now(timezone.utc)
                 timeout = 120  # seconds
 
                 self.message = f"Downloading {self.media_url_link}..."
                 if self.live_status == "was_live":
                     self.message += f" (formerly live video, length/duration {self.duration})"
                 while p.poll() is None:
-                    self.end_time = datetime.now()
+                    self.end_time = datetime.now(timezone.utc)
                     # Check if there's data available to read
                     rlist, _, _ = select.select([p.stdout], [], [], 0.1)
                     if rlist:
@@ -77,9 +77,9 @@ class TaskDownload(CalibreTask):
                                     self.progress = min(0.99, (complete_progress_cycle + (percentage / 100)) / 4)
                                 if percentage == 100:
                                     complete_progress_cycle += 1
-                                    last_progress_time = datetime.now()
+                                    last_progress_time = datetime.now(timezone.utc)
                     else:
-                        elapsed_time = (datetime.now() - last_progress_time).total_seconds()
+                        elapsed_time = (datetime.now(timezone.utc) - last_progress_time).total_seconds()
                         if elapsed_time >= timeout:
                             self.message = f"{self.media_url_link} is taking longer than expected. It could be a stuck download due to unavailable fragments (<a href='https://github.com/yt-dlp/yt-dlp/issues/2137' target='_blank'>yt-dlp/yt-dlp#2137</a>) and/or an error in xklb's media_check. Please wait as we keep trying. See <a href='https://github.com/iiab/calibre-web/pull/223' target='_blank'>#223</a> for more info."
                     sleep(0.1)
@@ -132,7 +132,7 @@ class TaskDownload(CalibreTask):
                 self.message = f"{self.media_url_link} failed to download: {self.read_error_from_database()}"
 
             finally:
-                self.end_time = datetime.now()
+                self.end_time = datetime.now(timezone.utc)
                 if p.returncode == 0 or self.progress == 1.0:
                     self.stat = STAT_FINISH_SUCCESS
                     log.info("Download task for %s completed successfully", self.media_url)
