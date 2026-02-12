@@ -208,17 +208,23 @@ def update_view():
     return "1", 200
 
 
+
+# The frontend can now use this data to render the new comment without a reload.
 @web.route("/ajax/comment/<int:book_id>", methods=['POST'])
 @user_login_required
 def post_comment(book_id):
     comment_text = request.form.get("comment")
     if not comment_text:
-        return _("Missing comment text"), 400
+        return jsonify({"error": "Missing comment text"}), 400
 
     new_comment = ub.VideoComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
     ub.session.add(new_comment)
     ub.session_commit("Comment by user {} for book {} created".format(current_user.id, book_id))
-    return ""
+    return jsonify({
+        "user": current_user.name,
+        "comment": new_comment.comment,
+        "created_at": new_comment.created_at.isoformat()
+    })
 
 
 @web.route("/ajax/rate/<int:book_id>", methods=['POST'])

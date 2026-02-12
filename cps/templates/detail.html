@@ -428,7 +428,7 @@
                         <div id="comments-list" style="margin-top: 20px;">
                             {% for comment in entry.user_comments %}
                                 <div class="comment" style="border-bottom: 1px solid #eee; padding: 10px 0;">
-                                    <strong>{{ comment.user.name }}</strong> <small class="text-muted">{{ comment.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                    <strong>{{ comment.user.name }}</strong> <small class="text-muted">{{ comment.created_at.astimezone().strftime('%Y-%m-%d %H:%M') }}</small>
                                     <p>{{ comment.comment }}</p>
                                 </div>
                             {% endfor %}
@@ -469,14 +469,33 @@ $('#rate-up, #rate-down').click(function() {
     });
 });
 
+
+//This updates the UI instantly and keeps the user in context.
 $('#comment-form').submit(function(e) {
     e.preventDefault();
     var comment = $('#comment-text').val();
     if (!comment) return;
 
-    $.post("{{ url_for('web.post_comment', book_id=entry.id) }}", {comment: comment, csrf_token: "{{ csrf_token() }}"}, function() {
-        location.reload();
-    });
+    $.post("{{ url_for('web.post_comment', book_id=entry.id) }}", {comment: comment, csrf_token: "{{ csrf_token() }}"})
+        .done(function(data) {
+            // Format the date for display
+            var date = new Date(data.created_at);
+            var formatted = date.toLocaleString(undefined, {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+            // Append new comment
+            $('#comments-list').prepend(
+                '<div class="comment" style="border-bottom: 1px solid #eee; padding: 10px 0;">' +
+                '<strong>' + data.user + '</strong> <small class="text-muted">' + formatted + '</small>' +
+                '<p>' + data.comment + '</p>' +
+                '</div>'
+            );
+            $('#comment-text').val(''); // Clear textarea
+        })
+        .fail(function(xhr) {
+            alert(xhr.responseJSON.error || "Error posting comment");
+        });
 });
 </script>
 
