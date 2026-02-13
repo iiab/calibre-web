@@ -45,6 +45,8 @@ jobs:
       - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
       - run: sudo ./iiab-install                    # Install IIAB!
         working-directory: /opt/iiab/iiab/
+      - name: Verify local website
+        run: curl -L localhost:8083
       - name: Install Firefox
         uses: browser-actions/setup-firefox@v1
       - run: firefox --version

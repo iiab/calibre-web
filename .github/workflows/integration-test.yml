@@ -1,6 +1,6 @@
 name: Integration tests
 run-name: Integration tests
-on: [push]
+on: [push, pull_request]
 jobs:
   integration-test-chrome:
     runs-on: ubuntu-latest
