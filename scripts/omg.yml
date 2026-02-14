@@ -1,0 +1,27 @@
+# LAST UPDATED: October 10, 2024
+
+# USAGE: https://github.com/iiab/calibre-web/wiki#wrench-installation
+
+runcmd:
+  - mkdir -p /etc/iiab
+  - |
+    cat >> /etc/iiab/local_vars.yml << EOF
+    calibreweb_install: True
+    calibreweb_enabled: True
+    nodocs: True
+    kolibri_install: False
+    kolibri_enabled: False
+    kiwix_install: False
+    kiwix_enabled: False
+    osm_vector_maps_install: False
+    awstats_install: False
+    awstats_enabled: False
+    matomo_install: False
+    matomo_enabled: False
+    captiveportal_install: False
+    network_install: False
+    network_enabled: False
+    admin_console_install: False
+    admin_console_enabled: False
+    EOF
+  - curl iiab.io/risky.txt | bash &

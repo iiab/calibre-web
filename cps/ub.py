@@ -40,7 +40,7 @@ except ImportError as e:
     except ImportError as e:
         OAuthConsumerMixin = BaseException
         oauth_support = False
-from sqlalchemy import create_engine, exc, exists, event, text
+from sqlalchemy import create_engine, exc, exists, event, text, UniqueConstraint
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy import String, Integer, SmallInteger, Boolean, DateTime, Float, JSON
 from sqlalchemy.orm.attributes import flag_modified
@@ -525,6 +525,39 @@ class Registration(Base):
         return "<Registration('{0}')>".format(self.domain)
 
 
+class ContentComments(Base):
+    __tablename__ = 'content_comments'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    book_id = Column(Integer)
+    comment = Column(String)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = relationship('User', backref='content_comments')
+
+    def __repr__(self):
+        return '<ContentComment %r>' % self.id
+
+
+class ContentRatings(Base):
+    __tablename__ = 'content_ratings'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('user.id'))
+    book_id = Column(Integer)
+    rating = Column(SmallInteger)  # 1 for up, -1 for down
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    __table_args__ = (UniqueConstraint('user_id', 'book_id', name='_user_book_rating_uc'),)
+
+    user = relationship('User', backref='content_ratings')
+
+    def __repr__(self):
+        return '<ContentRating %r>' % self.id
+
+
 class RemoteAuthToken(Base):
     __tablename__ = 'remote_auth_token'
 
@@ -572,6 +605,10 @@ def add_missing_tables(engine, _session):
         ArchivedBook.__table__.create(bind=engine)
     if not engine.dialect.has_table(engine.connect(), "thumbnail"):
         Thumbnail.__table__.create(bind=engine)
+    if not engine.dialect.has_table(engine.connect(), "content_comments"):
+        ContentComments.__table__.create(bind=engine)
+    if not engine.dialect.has_table(engine.connect(), "content_ratings"):
+        ContentRatings.__table__.create(bind=engine)
 
 
 # migrate all settings missing in registration table

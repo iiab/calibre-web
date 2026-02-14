@@ -138,3 +138,37 @@
 </div>
 
 {% endmacro %}
+
+{% macro media_download_modal() %}
+<div class="modal fade" id="mediaDownloadModal" tabindex="-1" role="dialog"
+  aria-labelledby="mediaDownloadModalLabel">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span
+            aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="mediaDownloadModalLabel">{{_('Download learning
+          video(s) to your Internet-in-a-Box')}}</h4>
+      </div>
+      <div class="modal-body">
+        <form id="mediaDownloadForm" class="form-horizontal" action="{{ url_for('edit-book.media') }}"
+          method="post">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <div class="form-group">
+            <label for="mediaURL" class="col-sm-2 control-label">{{_('URL')}}</label>
+            <div class="col-sm-10">
+              <input type="text" class="form-control" id="mediaURL" name="mediaURL"
+                placeholder="{{_('Enter URL')}}">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">{{_('Cancel')}}</button>
+        <button type="button" id="btn-download-media-submit" class="btn btn-primary"
+          onclick="$('#mediaDownloadModal').modal('hide')">{{_('Start')}}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endmacro %}

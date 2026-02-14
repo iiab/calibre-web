@@ -128,7 +128,61 @@
                                 <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.audio_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }} - {{ entry.audio_entries[0] }}</a>
                             {% endif %}
                         </div>
-                    {% endif %}
+                    {% elif entry.video_entries|length > 0 and current_user.role_viewer() %}
+                        <div class="btn-group" role="group">
+                            {% if entry.video_entries|length > 1 %}
+                                <button id="listen-in-browser" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <span class="glyphicon glyphicon-film"></span> {{ _('Watch in Browser') }}
+                                    <span class="caret"></span>
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
+                                    {% for format in entry.reader_list %}
+                                        <li><a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{ format }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
+
+                                    {% for format in entry.data %}
+                                        {% if format.format|lower in entry.video_entries %}
+                                            <li><a target="_blank"
+                                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{ format.format|lower }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.video_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-film"></span> {{ _('Watch in Browser') }} - {{ entry.video_entries[0] }}</a>
+                            {% endif %}
+                        </div>
+                        {% elif entry.image_entries|length > 0 and current_user.role_viewer() %}
+                        <div class="btn-group" role="group">
+                            {% if entry.image_entries|length > 1 %}
+                                <button id="listen-in-browser" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                    <span class="glyphicon glyphicon-picture"></span> {{ _('View in Browser') }}
+                                    <span class="caret"></span>
+                                </button>
+                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
+                                    {% for format in entry.reader_list %}
+                                        <li><a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=format) }}">{{ format }}</a>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                                <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
+
+                                    {% for format in entry.data %}
+                                        {% if format.format|lower in entry.image_entries %}
+                                            <li><a target="_blank"
+                                                   href="{{ url_for('web.read_book', book_id=entry.id, book_format=format.format|lower) }}">{{ format.format|lower }}</a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.image_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-picture"></span> {{ _('View in Browser') }} - {{ entry.image_entries[0] }}</a>
+                            {% endif %}    
+                        </div>
+                    {% endif %}        
                 </div>
             </div>
             <h2 id="title">{{ entry.title }}</h2>
@@ -350,6 +404,37 @@
                         <div class="btn btn-default" data-back="{{ url_for('web.index') }}" id="back">{{_('Cancel')}}</div>
                    </div>
                 {% endif %}
+
+                <div id="user-interactions" style="margin-top: 30px;">
+                    <hr>
+                    <h4>{{ _('Rating & Comments') }}</h4>
+                    <div id="rating-buttons" class="btn-group" role="group">
+                        <button id="rate-up" type="button" class="btn btn-default {% if entry.user_rating and entry.user_rating.rating == 1 %}active btn-success{% endif %}" data-rating="1">
+                            <span class="glyphicon glyphicon-thumbs-up"></span>
+                        </button>
+                        <button id="rate-down" type="button" class="btn btn-default {% if entry.user_rating and entry.user_rating.rating == -1 %}active btn-danger{% endif %}" data-rating="-1">
+                            <span class="glyphicon glyphicon-thumbs-down"></span>
+                        </button>
+                    </div>
+
+                    <div id="comment-section" style="margin-top: 20px;">
+                        <form id="comment-form">
+                            <div class="form-group">
+                                <textarea id="comment-text" class="form-control" rows="3" placeholder="{{ _('Add a comment...') }}"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">{{ _('Post Comment') }}</button>
+                        </form>
+
+                        <div id="comments-list" style="margin-top: 20px;">
+                            {% for comment in entry.user_comments %}
+                                <div class="comment" style="border-bottom: 1px solid #eee; padding: 10px 0;">
+                                    <strong>{{ comment.user.name }}</strong> <small class="text-muted">{{ comment.created_at.astimezone().strftime('%Y-%m-%d %H:%M') }}</small>
+                                    <p>{{ comment.comment }}</p>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
         </div>
     </div>
 </div>
@@ -372,6 +457,46 @@
 <script src="{{ url_for('static', filename='js/details.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
 <script type="text/javascript">
+$('#rate-up, #rate-down').click(function() {
+    var rating = $(this).data('rating');
+    var isActive = $(this).hasClass('active');
+    var sendRating = isActive ? 0 : rating;
+
+    $.post("{{ url_for('web.post_rate', book_id=entry.id) }}", {rating: sendRating, csrf_token: "{{ csrf_token() }}"}, function() {
+        $('#rate-up, #rate-down').removeClass('active btn-success btn-danger').addClass('btn-default');
+        if (sendRating == 1) $('#rate-up').addClass('active btn-success').removeClass('btn-default');
+        if (sendRating == -1) $('#rate-down').addClass('active btn-danger').removeClass('btn-default');
+    });
+});
+
+
+//This updates the UI instantly and keeps the user in context.
+$('#comment-form').submit(function(e) {
+    e.preventDefault();
+    var comment = $('#comment-text').val();
+    if (!comment) return;
+
+    $.post("{{ url_for('web.post_comment', book_id=entry.id) }}", {comment: comment, csrf_token: "{{ csrf_token() }}"})
+        .done(function(data) {
+            // Format the date for display
+            var date = new Date(data.created_at);
+            var formatted = date.toLocaleString(undefined, {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit'
+            });
+            // Append new comment
+            $('#comments-list').prepend(
+                '<div class="comment" style="border-bottom: 1px solid #eee; padding: 10px 0;">' +
+                '<strong>' + data.user + '</strong> <small class="text-muted">' + formatted + '</small>' +
+                '<p>' + data.comment + '</p>' +
+                '</div>'
+            );
+            $('#comment-text').val(''); // Clear textarea
+        })
+        .fail(function(xhr) {
+            alert(xhr.responseJSON.error || "Error posting comment");
+        });
+});
 </script>
 
 {% endblock %}

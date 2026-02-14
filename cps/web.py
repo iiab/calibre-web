@@ -36,6 +36,7 @@ from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from sqlalchemy.sql.expression import text, func, false, not_, and_, or_
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql.functions import coalesce
+from urllib.parse import quote
 from werkzeug.datastructures import Headers
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -205,6 +206,47 @@ def update_view():
         log.error("Could not save view_settings: %r %r: %e", request, to_save, ex)
         return "Invalid request", 400
     return "1", 200
+
+
+
+# The frontend can now use this data to render the new comment without a reload.
+@web.route("/ajax/comment/<int:book_id>", methods=['POST'])
+@user_login_required
+def post_comment(book_id):
+    comment_text = request.form.get("comment")
+    if not comment_text:
+        return jsonify({"error": "Missing comment text"}), 400
+
+    new_comment = ub.ContentComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
+    ub.session.add(new_comment)
+    ub.session_commit("Comment by user {} for book {} created".format(current_user.id, book_id))
+    return jsonify({
+        "user": current_user.name,
+        "comment": new_comment.comment,
+        "created_at": new_comment.created_at.isoformat()
+    })
+
+
+@web.route("/ajax/rate/<int:book_id>", methods=['POST'])
+@user_login_required
+def post_rate(book_id):
+    rating_val = request.form.get("rating", type=int)
+    if rating_val not in [1, -1, 0]:
+        return _("Invalid rating value"), 400
+
+    existing = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.user_id == int(current_user.id),
+                                                        ub.ContentRatings.book_id == book_id).first()
+    if existing:
+        if rating_val == 0:
+            ub.session.delete(existing)
+        else:
+            existing.rating = rating_val
+    elif rating_val != 0:
+        new_rating = ub.ContentRatings(user_id=int(current_user.id), book_id=book_id, rating=rating_val)
+        ub.session.add(new_rating)
+
+    ub.session_commit("Rating by user {} for book {} updated".format(current_user.id, book_id))
+    return ""
 
 
 '''
@@ -1612,6 +1654,45 @@ def read_book(book_id, book_format):
                 log.debug("Start mp3 listening for %d", book_id)
                 return render_title_template('listenmp3.html', mp3file=book_id, audioformat=book_format.lower(),
                                              entry=entries, bookmark=bookmark)
+        for fileExt in constants.EXTENSIONS_IMAGE:
+            if book_format.lower() == fileExt:
+                entries = calibre_db.get_filtered_book(book_id)
+                log.debug("Start image viewing for %d", book_id)
+                return serve_book.__closure__[0].cell_contents(book_id, book_format.lower(), anyname="")
+        for fileExt in constants.EXTENSIONS_VIDEO:
+            if book_format.lower() == fileExt:
+                log.debug("Start video watching for %d", book_id)
+                if config.config_use_google_drive:
+                    # log.debug(f"Video {fileExt} for book {book_id}: routing to serve_book for GDrive.")
+                    # return serve_book.__closure__[0].cell_contents(book_id, fileExt, anyname="")
+                    flash(_("Video streaming via Google Drive is not implemented yet."), category="error")
+                    return redirect(url_for("web.index"))
+                else:                    
+                    video_folder_path = os.path.join(config.config_calibre_dir, book.path)
+                    absolute_video_file_path = None
+    
+                    for file_in_dir in os.listdir(video_folder_path):
+                        if file_in_dir.lower().endswith("." + fileExt):
+                            absolute_video_file_path = os.path.join(video_folder_path, file_in_dir)
+                            break
+
+                    # Construct path relative to Calibre library root for X-Accel-Redirect URI
+                    if absolute_video_file_path.startswith(config.config_calibre_dir):
+                        path_relative = os.path.relpath(absolute_video_file_path, config.config_calibre_dir)
+                    else:
+                        log.error(f"Video path {absolute_video_file_path} not under config_calibre_dir {config.config_calibre_dir}")
+                        flash(_("Oops! Video path configuration error."), category="error")
+                        return redirect(url_for("web.index"))
+
+                    uri_path_component = quote(path_relative.replace(os.sep, "/"))
+                    internal_video_path = f"/protected-stream/{uri_path_component}"
+
+                    accel_response = make_response("")
+                    accel_response.headers['X-Accel-Redirect'] = internal_video_path
+                    mimetype = f'video/{fileExt}'
+                    accel_response.headers['Content-Type'] = mimetype
+                    
+                    return accel_response
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
                 all_name = str(book_id)
@@ -1661,9 +1742,21 @@ def show_book(book_id):
                 entry.reader_list_sizes[data.format.lower()] = data.uncompressed_size
 
         entry.audio_entries = []
+        entry.video_entries = []
+        entry.image_entries = []
         for media_format in entry.data:
             if media_format.format.lower() in constants.EXTENSIONS_AUDIO:
                 entry.audio_entries.append(media_format.format.lower())
+            if media_format.format.lower() in constants.EXTENSIONS_VIDEO:
+                entry.video_entries.append(media_format.format.lower())
+            if media_format.format.lower() in constants.EXTENSIONS_IMAGE:
+                entry.image_entries.append(media_format.format.lower())
+
+        entry.user_comments = ub.session.query(ub.ContentComments).filter(ub.ContentComments.book_id == book_id).order_by(ub.ContentComments.created_at.desc()).all()
+        if current_user.is_authenticated:
+            entry.user_rating = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.book_id == book_id, ub.ContentRatings.user_id == int(current_user.id)).first()
+        else:
+            entry.user_rating = None
 
         return render_title_template('detail.html',
                                      entry=entry,

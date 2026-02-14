@@ -1,0 +1,141 @@
+#!/bin/bash
+
+SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
+
+XKLB_INTERNAL_CMD="$1"    # e.g. "tubeadd" or "dl" or "search"
+URL_OR_SEARCH_TERM="$2"
+
+LOG_FILE="/var/log/xklb.log"
+XKLB_DB_FILE="/library/calibre-web/xklb-metadata.db"
+TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
+
+# OUTTMPL refers to yt-dlp's "OUTPUT TEMPLATE". This is a filepath with regex
+# that can interpret attributes about the video. It enables things like a file
+# structure sorted by YouTube channel, or embedding metadata in the filename of
+# the video. It is also mentioned in the "yt-dlp --help" menu. For more info,
+# see: https://github.com/yt-dlp/yt-dlp#output-template
+#
+# Additional uses of the OUTPUT TEMPLATE:
+# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L385-L388
+# https://github.com/chapmanjacobd/library/blob/e682ac20f5dcc4fa94238b57931f4705b9515059/xklb/createdb/tube_backend.py#L508-L523
+# /library/downloads/calibre-web/                                                                         (TMP_DOWNLOADS_DIR)
+# └── Youtube                                                                                             (extractor)
+#     └── TED-Ed                                                                                          (uploader_id)
+#         ├── How does an air conditioner actually work？ - Anna Rothschild_224.59k_[6sSDXurPX-s].mp4     ([video file] title + view_count + video_id + extension)
+#         └── How does an air conditioner actually work？ - Anna Rothschild_224.59k_[6sSDXurPX-s].webp    ([thumbnail] title + view_count + video_id + extension)
+OUTTMPL="${TMP_DOWNLOADS_DIR}/%(extractor_key,extractor)s/%(uploader,uploader_id)s/%(title).170B_%(view_count)3.2D_[%(id).64B].%(ext)s"
+
+# Or download largest possible HD-style / UltraHD videos, to try to force
+# out-of-memory "502 Bad Gateway" for testing of issues like #37 and #79
+# FORMAT_OPTIONS="--format-sort=size"
+FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
+
+# xklb (library) passes all these options straight to yt-dlp. Recent versions
+# of Python 3.12+ require option values to be specified using "=" instead of
+# " " to avoid parsing errors:  https://github.com/iiab/calibre-web/issues/267
+# UPDATE: Notice the lack of a space between the '-o' flag and '${OUTTMPL}'.
+# See https://github.com/iiab/calibre-web/issues/321 for the problem that this
+# (hopefully) solves.
+YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o'${OUTTMPL}' ${FORMAT_OPTIONS}"
+
+
+VERBOSITY="-vv"
+
+PATTERNS=(
+    "downloading*"
+    "\[https://.*\]:*"
+    "\[download\] Downloading playlist:*"
+)
+
+match_pattern() {
+    local line=$1
+    for pattern in "${PATTERNS[@]}"; do
+        if [[ $line == $pattern ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+mkdir -p ${TMP_DOWNLOADS_DIR}
+
+# Function to log messages e.g. w/ level "Info", "Debug" or "Error"
+log() {
+    local level=$1
+    local message=$2
+    echo "$(date +'%Y-%m-%d %H:%M:%S') - [$level] $message" | tee -a ${LOG_FILE}
+}
+
+if [ $# -ne 2 ]; then
+    log "Error" "Two arguments are required. Please provide a command (tubeadd/dl/search) and a URL or search term."
+    exit 1
+fi
+
+# URL validation already taken care of by cps/static/js/main.js Lines 167-170
+# which (1) trims outer whitespace, and (2) prepends https:// if URL doesn't
+# already begin with http:// or https://              (Test below means well,
+# enforcing much the same and with logging, but let's avoid duplicate code!)
+# if [[ ! ${URL} =~ ^http[s]?:// ]]; then
+#     log 'Invalid URL: xklb commands require URLs begin with "http://" or "https://"'
+#     exit 1
+# fi
+
+# Update yt-dlp if necessary; nightly is considered more stable by the devs because sites change often
+# https://old.reddit.com/r/youtubedl/comments/1lncsh8/what_are_the_drawbacks_of_nightly_version_why_not/
+$SCRIPT_DIR/yt-dlp-updater
+
+if ! command -v "lb"; then
+    log "Error" "xklb could not be found. Please install xklb and try again."
+    exit 1
+fi
+
+if ! command -v "yt-dlp"; then
+    log "Error" "yt-dlp could not be found. Please install yt-dlp and try again."
+    exit 1
+fi
+
+log "Info" "Using yt-dlp $(yt-dlp --version)"
+
+# 2024-01-25 Question: "Why separate execution of 'tubeadd' and 'dl' ?"
+# @deldesir Responded: "For listing requested files after tubeadd is done
+# fetching metadata. This will prevent hanging for playlist URLs or short URLs.
+# "...to be able to list videos that are not downloaded yet"
+if [[ $XKLB_INTERNAL_CMD == "tubeadd" ]]; then
+    xklb_full_cmd="lb tubeadd '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${VERBOSITY}"
+elif [[ $XKLB_INTERNAL_CMD == "dl" ]]; then
+    xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' --subs ${YT_DLP_OPTIONS} ${VERBOSITY}"
+elif [[ $XKLB_INTERNAL_CMD == "search" ]]; then
+    xklb_full_cmd="lb search '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}'"
+else
+    log "Error" "Invalid xklb command. Please use 'tubeadd', 'dl' or 'search'."
+    exit 1
+fi
+
+log "Info" "Running xklb command: ${xklb_full_cmd}"
+
+# >(...) "process substitution" explained at https://unix.stackexchange.com/a/324170
+# 1>&2 redirect back-to-STDERR to avoid nested (repeat) logging, explained at https://stackoverflow.com/a/15936384
+eval "${xklb_full_cmd}" \
+    > >(while read -r line; do if match_pattern "$line"; then echo "$line"; else log "Info" "$line"; fi; done) \
+    2> >(while read -r line; do if match_pattern "$line"; then echo "$line"; else log "Debug" "$line" 1>&2; fi; done) &
+# 2024-01-11: HOW THIS WORKS...
+# 0) xklb sends a flood of yt-dlp status message lines like "downloading  59.8%    2.29MiB/s" to STDERR.
+# 1) Then, "2> >(...)" reroutes (only those raw lines!) to STDIN, instead of logging them (as "Debug" lines).
+# 2) Then, upon receiving them at STDIN, "> >(...)" again prevents (only those raw lines!) from being logged (as "Info" messages).
+# 3) Then, cps/tasks/download.py uses an equivalent Python REGEX to flag (only these raw lines! yes a 3rd time!)
+#    parsing them to send "percentage download progress" info along to the "Tasks" view in the web front-end:
+#    https://github.com/iiab/calibre-web/blob/870bf6d35f890712f44ce711f3f8f6b541ccf1fe/cps/tasks/download.py#L46
+
+pid=$!
+
+# Wait for background process to complete
+wait $pid
+rc=$?
+
+# Check return code (exit status)
+if [ $rc -eq 0 ]; then
+    log "Info" "lb-wrapper's xklb command (${XKLB_INTERNAL_CMD}) completed successfully."
+else
+    log "Error" "Error $rc occurred while running lb-wrapper's xklb commands."
+    exit $rc
+fi

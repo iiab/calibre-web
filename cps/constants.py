@@ -44,6 +44,16 @@ CACHE_DIRECTORY = os.environ.get(
     'CACHE_DIRECTORY', os.environ.get('CACHE_DIR', DEFAULT_CACHE_DIR)
 )
 
+# 2023-11-15: See scripts/lb-wrapper which uses xklb's 'lb tubeadd ...' to save
+# an initial metadata manifest (prior to downloading videos or media) here:
+XKLB_DB_FILE      = "/library/calibre-web/xklb-metadata.db"
+
+# Maximum number of videos to download, from a playlist or channel
+MAX_VIDEOS_PER_DOWNLOAD = 100
+
+# Maximum number of gigabytes to download, from a playlist or channel (not yet implemented!)
+MAX_GB_PER_DOWNLOAD = 10
+
 if HOME_CONFIG:
     home_dir = os.path.join(os.path.expanduser("~"), ".calibre-web")
     if not os.path.exists(home_dir):
@@ -147,14 +157,16 @@ except ValueError:
 del env_CALIBRE_PORT
 
 
-EXTENSIONS_AUDIO = {'mp3', 'mp4', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
+EXTENSIONS_AUDIO = {'mp3', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
+EXTENSIONS_VIDEO = {'mp4', 'webm', 'mkv'}
+EXTENSIONS_IMAGE = {'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'}    
 EXTENSIONS_CONVERT_FROM = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf',
                            'txt', 'htmlz', 'rtf', 'odt', 'cbz', 'cbr', 'prc']
 EXTENSIONS_CONVERT_TO = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2',
                          'lit', 'lrf', 'txt', 'htmlz', 'rtf', 'odt']
 EXTENSIONS_UPLOAD = {'txt', 'pdf', 'epub', 'kepub', 'mobi', 'azw', 'azw3', 'cbr', 'cbz', 'cbt', 'cb7', 'djvu', 'djv',
                      'prc', 'doc', 'docx', 'fb2', 'html', 'rtf', 'lit', 'odt', 'mp3', 'mp4', 'ogg',
-                     'opus', 'wav', 'flac', 'm4a', 'm4b'}
+                     'opus', 'wav', 'flac', 'm4a', 'm4b', 'webm', 'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp', 'mkv'}
 
 _extension = ""
 if sys.platform == "win32":
@@ -175,7 +187,7 @@ BookMeta = namedtuple('BookMeta', 'file_path, extension, title, author, cover, d
                                   'series_id, languages, publisher, pubdate, identifiers')
 
 # python build process likes to have x.y.zbw -> b for beta and w a counting number
-STABLE_VERSION =  '0.6.26b'
+STABLE_VERSION =  '0.6.27b'
 
 NIGHTLY_VERSION = dict()
 NIGHTLY_VERSION[0] = '$Format:%H$'
