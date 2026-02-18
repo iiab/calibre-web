@@ -217,7 +217,7 @@ def post_comment(book_id):
     if not comment_text:
         return jsonify({"error": "Missing comment text"}), 400
 
-    new_comment = ub.VideoComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
+    new_comment = ub.ContentComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
     ub.session.add(new_comment)
     ub.session_commit("Comment by user {} for book {} created".format(current_user.id, book_id))
     return jsonify({
@@ -234,15 +234,15 @@ def post_rate(book_id):
     if rating_val not in [1, -1, 0]:
         return _("Invalid rating value"), 400
 
-    existing = ub.session.query(ub.VideoRatings).filter(ub.VideoRatings.user_id == int(current_user.id),
-                                                        ub.VideoRatings.book_id == book_id).first()
+    existing = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.user_id == int(current_user.id),
+                                                        ub.ContentRatings.book_id == book_id).first()
     if existing:
         if rating_val == 0:
             ub.session.delete(existing)
         else:
             existing.rating = rating_val
     elif rating_val != 0:
-        new_rating = ub.VideoRatings(user_id=int(current_user.id), book_id=book_id, rating=rating_val)
+        new_rating = ub.ContentRatings(user_id=int(current_user.id), book_id=book_id, rating=rating_val)
         ub.session.add(new_rating)
 
     ub.session_commit("Rating by user {} for book {} updated".format(current_user.id, book_id))
@@ -1361,10 +1361,6 @@ def register_post():
         content.role = config.config_default_role
         content.locale = config.config_default_locale
         content.sidebar_view = config.config_default_show
-        content.allowed_tags = config.config_allowed_tags
-        content.denied_tags = config.config_denied_tags
-        content.allowed_column_value = config.config_allowed_column_value
-        content.denied_column_value = config.config_denied_column_value
         try:
             ub.session.add(content)
             ub.session.commit()
@@ -1756,9 +1752,9 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_IMAGE:
                 entry.image_entries.append(media_format.format.lower())
 
-        entry.user_comments = ub.session.query(ub.VideoComments).filter(ub.VideoComments.book_id == book_id).order_by(ub.VideoComments.created_at.desc()).all()
+        entry.user_comments = ub.session.query(ub.ContentComments).filter(ub.ContentComments.book_id == book_id).order_by(ub.ContentComments.created_at.desc()).all()
         if current_user.is_authenticated:
-            entry.user_rating = ub.session.query(ub.VideoRatings).filter(ub.VideoRatings.book_id == book_id, ub.VideoRatings.user_id == int(current_user.id)).first()
+            entry.user_rating = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.book_id == book_id, ub.ContentRatings.user_id == int(current_user.id)).first()
         else:
             entry.user_rating = None
 
