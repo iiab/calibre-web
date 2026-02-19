@@ -525,8 +525,8 @@ class Registration(Base):
         return "<Registration('{0}')>".format(self.domain)
 
 
-class VideoComments(Base):
-    __tablename__ = 'video_comments'
+class ContentComments(Base):
+    __tablename__ = 'content_comments'
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('user.id'))
@@ -535,14 +535,14 @@ class VideoComments(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
-    user = relationship('User', backref='video_comments')
+    user = relationship('User', backref='content_comments')
 
     def __repr__(self):
-        return '<VideoComment %r>' % self.id
+        return '<ContentComment %r>' % self.id
 
 
-class VideoRatings(Base):
-    __tablename__ = 'video_ratings'
+class ContentRatings(Base):
+    __tablename__ = 'content_ratings'
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('user.id'))
@@ -552,10 +552,10 @@ class VideoRatings(Base):
 
     __table_args__ = (UniqueConstraint('user_id', 'book_id', name='_user_book_rating_uc'),)
 
-    user = relationship('User', backref='video_ratings')
+    user = relationship('User', backref='content_ratings')
 
     def __repr__(self):
-        return '<VideoRating %r>' % self.id
+        return '<ContentRating %r>' % self.id
 
 
 class RemoteAuthToken(Base):
@@ -605,10 +605,10 @@ def add_missing_tables(engine, _session):
         ArchivedBook.__table__.create(bind=engine)
     if not engine.dialect.has_table(engine.connect(), "thumbnail"):
         Thumbnail.__table__.create(bind=engine)
-    if not engine.dialect.has_table(engine.connect(), "video_comments"):
-        VideoComments.__table__.create(bind=engine)
-    if not engine.dialect.has_table(engine.connect(), "video_ratings"):
-        VideoRatings.__table__.create(bind=engine)
+    if not engine.dialect.has_table(engine.connect(), "content_comments"):
+        ContentComments.__table__.create(bind=engine)
+    if not engine.dialect.has_table(engine.connect(), "content_ratings"):
+        ContentRatings.__table__.create(bind=engine)
 
 
 # migrate all settings missing in registration table
