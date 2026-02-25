@@ -29,6 +29,9 @@ jobs:
           kiwix_install: False
           kiwix_enabled: False
           osm_vector_maps_install: False
+          osm_vector_maps_enabled: False
+          maps_install: False
+          maps_enabled: False
           awstats_install: False
           awstats_enabled: False
           matomo_install: False
