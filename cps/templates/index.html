@@ -3,7 +3,7 @@
 {% block body %}
 {% if current_user.show_detail_random() and page != "discover" %}
 <div class="discover random-books">
-  <h2 class="random-books">{{_('Discover (Random Books)')}}</h2>
+  <h2 class="random-books">{{_('Discover')}}</h2>
   <div class="row display-flex">
    {% for entry in random %}
     <div class="col-sm-3 col-lg-2 col-xs-6 book session" id="books_rand">

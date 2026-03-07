@@ -22,8 +22,9 @@ from werkzeug.local import LocalProxy
 from .cw_login import current_user
 from sqlalchemy.sql.expression import or_
 
-from . import config, constants, logger, ub
+from . import config, constants, logger, ub, calibre_db, db
 from .ub import User
+from .media_context import detect_library_media_context
 
 
 log = logger.create()
@@ -32,37 +33,59 @@ def get_sidebar_config(kwargs=None):
     kwargs = kwargs or []
     simple = bool([e for e in ['kindle', 'tolino', "kobo", "bookeen"]
                    if (e in request.headers.get('User-Agent', "").lower())])
+    media_context = kwargs.get("media_context") if isinstance(kwargs, dict) else None
+    if not media_context:
+        media_context = detect_library_media_context(calibre_db, db)
+    label_sets = {
+        "book": {"root": _('Books'), "hot": _('Hot Books'), "people": _('Authors'),
+                 "downloaded": _('Downloaded Books'), "top_rated": _('Top Rated Books'),
+                 "read": _('Read Books'), "unread": _('Unread Books'),
+                 "archived": _('Archived Books'), "list": _('Books List')},
+        "video": {"root": _('Videos'), "hot": _('Popular Videos'), "people": _('Creators'),
+                  "downloaded": _('Downloaded Videos'), "top_rated": _('Top Rated Videos'),
+                  "read": _('Viewed Videos'), "unread": _('Unviewed Videos'),
+                  "archived": _('Archived Videos'), "list": _('Video List')},
+        "audio": {"root": _('Audio'), "hot": _('Popular Audio'), "people": _('Creators'),
+                  "downloaded": _('Downloaded Audio'), "top_rated": _('Top Rated Audio'),
+                  "read": _('Listened Audio'), "unread": _('Unlistened Audio'),
+                  "archived": _('Archived Audio'), "list": _('Audio List')},
+        "image": {"root": _('Images'), "hot": _('Popular Images'), "people": _('Creators'),
+                  "downloaded": _('Downloaded Images'), "top_rated": _('Top Rated Images'),
+                  "read": _('Viewed Images'), "unread": _('Unviewed Images'),
+                  "archived": _('Archived Images'), "list": _('Image List')},
+    }
+    labels = label_sets.get(media_context, label_sets["book"])
     if 'content' in kwargs:
         content = kwargs['content']
         content = isinstance(content, (User, LocalProxy)) and not content.role_anonymous()
     else:
         content = 'conf' in kwargs
     sidebar = list()
-    sidebar.append({"glyph": "glyphicon-book", "text": _('Books'), "link": 'web.index', "id": "new",
+    sidebar.append({"glyph": "glyphicon-book", "text": labels["root"], "link": 'web.index', "id": "new",
                     "visibility": constants.SIDEBAR_RECENT, 'public': True, "page": "root",
                     "show_text": _('Show recent books'), "config_show":False})
-    sidebar.append({"glyph": "glyphicon-fire", "text": _('Hot Books'), "link": 'web.books_list', "id": "hot",
+    sidebar.append({"glyph": "glyphicon-fire", "text": labels["hot"], "link": 'web.books_list', "id": "hot",
                     "visibility": constants.SIDEBAR_HOT, 'public': True, "page": "hot",
                     "show_text": _('Show Hot Books'), "config_show": True})
     if current_user.role_admin():
-        sidebar.append({"glyph": "glyphicon-download", "text": _('Downloaded Books'), "link": 'web.download_list',
+        sidebar.append({"glyph": "glyphicon-download", "text": labels["downloaded"], "link": 'web.download_list',
                         "id": "download", "visibility": constants.SIDEBAR_DOWNLOAD, 'public': (not current_user.is_anonymous),
                         "page": "download", "show_text": _('Show Downloaded Books'), "no_param":True,
                         "config_show": content})
     else:
-        sidebar.append({"glyph": "glyphicon-download", "text": _('Downloaded Books'), "link": 'web.books_list',
+        sidebar.append({"glyph": "glyphicon-download", "text": labels["downloaded"], "link": 'web.books_list',
                         "id": "download", "visibility": constants.SIDEBAR_DOWNLOAD, 'public': (not current_user.is_anonymous),
                         "page": "download", "show_text": _('Show Downloaded Books'),
                         "config_show": content})
     sidebar.append(
-        {"glyph": "glyphicon-star", "text": _('Top Rated Books'), "link": 'web.books_list', "id": "rated",
+        {"glyph": "glyphicon-star", "text": labels["top_rated"], "link": 'web.books_list', "id": "rated",
          "visibility": constants.SIDEBAR_BEST_RATED, 'public': True, "page": "rated",
          "show_text": _('Show Top Rated Books'), "config_show": True})
-    sidebar.append({"glyph": "glyphicon-eye-open", "text": _('Read Books'), "link": 'web.books_list', "id": "read",
+    sidebar.append({"glyph": "glyphicon-eye-open", "text": labels["read"], "link": 'web.books_list', "id": "read",
                     "visibility": constants.SIDEBAR_READ_AND_UNREAD, 'public': (not current_user.is_anonymous),
                     "page": "read", "show_text": _('Show Read and Unread'), "config_show": content})
     sidebar.append(
-        {"glyph": "glyphicon-eye-close", "text": _('Unread Books'), "link": 'web.books_list', "id": "unread",
+        {"glyph": "glyphicon-eye-close", "text": labels["unread"], "link": 'web.books_list', "id": "unread",
          "visibility": constants.SIDEBAR_READ_AND_UNREAD, 'public': (not current_user.is_anonymous), "page": "unread",
          "show_text": _('Show unread'), "config_show": False})
     sidebar.append({"glyph": "glyphicon-random", "text": _('Discover'), "link": 'web.books_list', "id": "rand",
@@ -74,9 +97,21 @@ def get_sidebar_config(kwargs=None):
     sidebar.append({"glyph": "glyphicon-bookmark", "text": _('Series'), "link": 'web.series_list', "id": "serie",
                     "visibility": constants.SIDEBAR_SERIES, 'public': True, "page": "series", "no_param":True,
                     "show_text": _('Show Series Section'), "config_show": True})
-    sidebar.append({"glyph": "glyphicon-user", "text": _('Authors'), "link": 'web.author_list', "id": "author",
+    sidebar.append({"glyph": "glyphicon-user", "text": labels["people"], "link": 'web.author_list', "id": "author",
                     "visibility": constants.SIDEBAR_AUTHOR, 'public': True, "page": "author", "no_param":True,
                     "show_text": _('Show Author Section'), "config_show": True})
+    sidebar.append({"glyph": "glyphicon-film", "text": _('Videos'), "link": 'web.books_list', "id": "videos",
+                    "visibility": constants.SIDEBAR_RECENT, 'public': True, "page": "videos",
+                    "show_text": _('Show Videos'), "config_show": True})
+    sidebar.append({"glyph": "glyphicon-music", "text": _('Audio'), "link": 'web.books_list', "id": "audios",
+                    "visibility": constants.SIDEBAR_RECENT, 'public': True, "page": "audios",
+                    "show_text": _('Show Audio'), "config_show": True})
+    sidebar.append({"glyph": "glyphicon-picture", "text": _('Images'), "link": 'web.books_list', "id": "images",
+                    "visibility": constants.SIDEBAR_RECENT, 'public': True, "page": "images",
+                    "show_text": _('Show Images'), "config_show": True})
+    sidebar.append({"glyph": "glyphicon-book", "text": _('Books'), "link": 'web.books_list', "id": "books",
+                    "visibility": constants.SIDEBAR_RECENT, 'public': True, "page": "books",
+                    "show_text": _('Show Books'), "config_show": True})
     sidebar.append(
         {"glyph": "glyphicon-text-size", "text": _('Publishers'), "link": 'web.publisher_list', "id": "publisher",
          "visibility": constants.SIDEBAR_PUBLISHER, 'public': True, "page": "publisher", "no_param":True,
@@ -92,12 +127,12 @@ def get_sidebar_config(kwargs=None):
                     "visibility": constants.SIDEBAR_FORMAT, 'public': True, "no_param":True,
                     "page": "format", "show_text": _('Show File Formats Section'), "config_show": True})
     sidebar.append(
-        {"glyph": "glyphicon-folder-open", "text": _('Archived Books'), "link": 'web.books_list', "id": "archived",
+        {"glyph": "glyphicon-folder-open", "text": labels["archived"], "link": 'web.books_list', "id": "archived",
          "visibility": constants.SIDEBAR_ARCHIVED, 'public': (not current_user.is_anonymous), "page": "archived",
          "show_text": _('Show Archived Books'), "config_show": content})
     if not simple:
         sidebar.append(
-            {"glyph": "glyphicon-th-list", "text": _('Books List'), "link": 'web.books_table', "id": "list",
+            {"glyph": "glyphicon-th-list", "text": labels["list"], "link": 'web.books_table', "id": "list",
              "visibility": constants.SIDEBAR_LIST, 'public': (not current_user.is_anonymous),
              "show_text": _('Show Books List'), "config_show": content, "no_param":True})
     g.shelves_access = ub.session.query(ub.Shelf).filter(
