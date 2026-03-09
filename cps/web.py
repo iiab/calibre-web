@@ -59,6 +59,7 @@ from .services.worker import WorkerThread
 from .tasks_status import render_task_status
 from .usermanagement import user_login_required
 from .string_helper import strip_whitespaces
+from .media_context import get_media_db_filter, detect_library_media_context
 
 
 feature_support = {
@@ -414,6 +415,17 @@ def get_sort_function(sort_param, data):
     return order, sort_param
 
 
+def get_active_media_labels():
+    context = detect_library_media_context(calibre_db, db)
+    labels = {
+        "book": {"plural": _("Books")},
+        "video": {"plural": _("Videos")},
+        "audio": {"plural": _("Audio")},
+        "image": {"plural": _("Images")},
+    }
+    return labels.get(context, labels["book"])
+
+
 def render_books_list(data, sort_param, book_id, page):
     order = get_sort_function(sort_param, data)
     if data == "rated":
@@ -444,6 +456,14 @@ def render_books_list(data, sort_param, book_id, page):
         return render_language_books(page, book_id, order)
     elif data == "archived":
         return render_archived_books(page, order)
+    elif data == "videos":
+        return render_media_books(page, "video", order)
+    elif data == "audios":
+        return render_media_books(page, "audio", order)
+    elif data == "images":
+        return render_media_books(page, "image", order)
+    elif data == "books":
+        return render_media_books(page, "book", order)
     elif data == "search":
         term = request.args.get('query', None)
         offset = int(int(config.config_books_per_page) * (page - 1))
@@ -453,6 +473,7 @@ def render_books_list(data, sort_param, book_id, page):
         offset = int(int(config.config_books_per_page) * (page - 1))
         return render_adv_search_results(term, offset, order, config.config_books_per_page)
     else:
+        media_labels = get_active_media_labels()
         website = data or "newest"
         entries, random, pagination = calibre_db.fill_indexpage(page, 0, db.Books, True, order[0],
                                                                 True, config.config_read_column,
@@ -460,11 +481,12 @@ def render_books_list(data, sort_param, book_id, page):
                                                                 db.Books.id == db.books_series_link.c.book,
                                                                 db.Series)
         return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
-                                     title=_("Books"), page=website, order=order[1])
+                                     title=media_labels["plural"], page=website, order=order[1])
 
 
 def render_rated_books(page, book_id, order):
     if current_user.check_visibility(constants.SIDEBAR_BEST_RATED):
+        media_labels = get_active_media_labels()
         entries, random, pagination = calibre_db.fill_indexpage(page, 0,
                                                                 db.Books,
                                                                 db.Books.ratings.any(db.Ratings.rating > 9),
@@ -475,7 +497,8 @@ def render_rated_books(page, book_id, order):
                                                                 db.Series)
 
         return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
-                                     id=book_id, title=_("Top Rated Books"), page="rated", order=order[1])
+                                     id=book_id, title=_("Top Rated %(content)s", content=media_labels["plural"]),
+                                     page="rated", order=order[1])
     else:
         abort(404)
 
@@ -487,13 +510,32 @@ def render_discover_books(book_id):
                                                             config_read_column=config.config_read_column)
         pagination = Pagination(1, config.config_books_per_page, config.config_books_per_page)
         return render_title_template('index.html', random=false(), entries=entries, pagination=pagination, id=book_id,
-                                     title=_("Discover (Random Books)"), page="discover")
+                                     title=_("Discover"), page="discover")
     else:
         abort(404)
 
 
+def render_media_books(page, media_type, order):
+    db_filter = get_media_db_filter(db, media_type)
+    entries, random, pagination = calibre_db.fill_indexpage(page, 0, db.Books, db_filter, order[0],
+                                                            True, config.config_read_column,
+                                                            db.books_series_link,
+                                                            db.Books.id == db.books_series_link.c.book,
+                                                            db.Series)
+    title_map = {
+        "video": _("Videos"),
+        "audio": _("Audio"),
+        "image": _("Images"),
+        "book": _("Books")
+    }
+    return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
+                                 title=title_map.get(media_type, _("Library")), page=f"{media_type}s",
+                                 order=order[1], media_context=media_type)
+
+
 def render_hot_books(page, order):
     if current_user.check_visibility(constants.SIDEBAR_HOT):
+        media_labels = get_active_media_labels()
         if order[1] not in ['hotasc', 'hotdesc']:
             # Unary expression comparison only working (for this expression) in sqlalchemy 1.4+
             # if not (order[0][0].compare(func.count(ub.Downloads.book_id).desc()) or
@@ -523,7 +565,8 @@ def render_hot_books(page, order):
         num_books = entries.__len__()
         pagination = Pagination(page, config.config_books_per_page, num_books)
         return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
-                                     title=_("Hot Books (Most Downloaded)"), page="hot", order=order[1])
+                                     title=_("Hot %(content)s (Most Downloaded)", content=media_labels["plural"]),
+                                     page="hot", order=order[1])
     else:
         abort(404)
 
@@ -773,6 +816,7 @@ def render_language_books(page, name, order):
 
 
 def render_read_books(page, are_read, as_xml=False, order=None):
+    media_labels = get_active_media_labels()
     sort_param = order[0] if order else []
     if not config.config_read_column:
         if are_read:
@@ -808,16 +852,17 @@ def render_read_books(page, are_read, as_xml=False, order=None):
         return entries, pagination
     else:
         if are_read:
-            name = _('Read Books') + ' (' + str(pagination.total_count) + ')'
+            name = _('Read %(content)s', content=media_labels["plural"]) + ' (' + str(pagination.total_count) + ')'
             page_name = "read"
         else:
-            name = _('Unread Books') + ' (' + str(pagination.total_count) + ')'
+            name = _('Unread %(content)s', content=media_labels["plural"]) + ' (' + str(pagination.total_count) + ')'
             page_name = "unread"
         return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
                                      title=name, page=page_name, order=order[1])
 
 
 def render_archived_books(page, sort_param):
+    media_labels = get_active_media_labels()
     order = sort_param[0] or []
     archived_books = (ub.session.query(ub.ArchivedBook)
                       .filter(ub.ArchivedBook.user_id == int(current_user.id))
@@ -834,7 +879,7 @@ def render_archived_books(page, sort_param):
                                                                                 True,
                                                                                 True, config.config_read_column)
 
-    name = _('Archived Books') + ' (' + str(len(entries)) + ')'
+    name = _('Archived %(content)s', content=media_labels["plural"]) + ' (' + str(len(entries)) + ')'
     page_name = "archived"
     return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
                                  title=name, page=page_name, order=sort_param[1])
@@ -857,7 +902,7 @@ def books_list(data, sort_param, book_id, page):
 
 # Limit number of routes to avoid redirects
 data =["rated", "discover", "unread", "read", "hot", "download", "author", "publisher", "series", "ratings", "formats",
-       "category", "language", "archived", "search", "advsearch", "newest"]
+       "category", "language", "archived", "search", "advsearch", "newest", "videos", "audios", "images", "books"]
 for d in data:
     web.add_url_rule('/{}/<sort_param>'.format(d), view_func=books_list, defaults={'page': 1, 'book_id': 1, "data": d})
     web.add_url_rule('/{}/<sort_param>/'.format(d), view_func=books_list, defaults={'page': 1, 'book_id': 1, "data": d})
