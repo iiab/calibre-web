@@ -210,11 +210,14 @@ def update_view():
 
 # The frontend can now use this data to render the new comment without a reload.
 @web.route("/ajax/comment/<int:book_id>", methods=['POST'])
-@user_login_required
+@login_required_if_no_ano
 def post_comment(book_id):
-    comment_text = request.form.get("comment")
+    if not current_user.is_authenticated:
+        return jsonify({"error": _("Please log in to post a comment.")}), 401
+
+    comment_text = (request.form.get("comment") or "").strip()
     if not comment_text:
-        return jsonify({"error": "Missing comment text"}), 400
+        return jsonify({"error": _("Missing comment text")}), 400
 
     new_comment = ub.ContentComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
     ub.session.add(new_comment)
@@ -227,11 +230,14 @@ def post_comment(book_id):
 
 
 @web.route("/ajax/rate/<int:book_id>", methods=['POST'])
-@user_login_required
+@login_required_if_no_ano
 def post_rate(book_id):
     rating_val = request.form.get("rating", type=int)
     if rating_val not in [1, -1, 0]:
         return _("Invalid rating value"), 400
+
+    if current_user.id is None:
+        return _("Please log in to rate this content"), 401
 
     existing = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.user_id == int(current_user.id),
                                                         ub.ContentRatings.book_id == book_id).first()
@@ -1777,7 +1783,7 @@ def show_book(book_id):
                 entry.image_entries.append(media_format.format.lower())
 
         entry.user_comments = ub.session.query(ub.ContentComments).filter(ub.ContentComments.book_id == book_id).order_by(ub.ContentComments.created_at.desc()).all()
-        if current_user.is_authenticated:
+        if current_user.id is not None:
             entry.user_rating = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.book_id == book_id, ub.ContentRatings.user_id == int(current_user.id)).first()
         else:
             entry.user_rating = None
