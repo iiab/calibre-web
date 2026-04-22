@@ -50,6 +50,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 - In-browser eBook reading support for multiple formats
 - Upload new books in various formats, including audio formats
 - Calibre Custom Columns support
+- Create and manage custom properties from Calibre-Web using Calibre-compatible custom columns
 - Content hiding based on categories and Custom Column content per user
 - Self-update capability
 - "Magic Link" login for easy access on eReaders
@@ -110,6 +111,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 4. **Configure Calibre Database**: In the admin interface, set the `Location of Calibre database` to the path of the folder containing your Calibre library (where `metadata.db` is located) and click "Save".
 5. **Google Drive Integration**: For hosting your Calibre library on Google Drive, refer to the [Google Drive integration guide](https://github.com/janeczku/calibre-web/wiki/G-Drive-Setup#using-google-drive-integration).
 6. **Admin Configuration**: Configure your instance via the admin page, referring to the [Basic Configuration](https://github.com/janeczku/calibre-web/wiki/Configuration#basic-configuration) and [UI Configuration](https://github.com/janeczku/calibre-web/wiki/Configuration#ui-configuration) guides.
+7. **Custom Properties**: Use **Admin → Manage Custom Properties** to create library-specific fields such as participants, location, or production notes. Those properties appear on the edit metadata page, content details, and advanced search.
 
 ## Requirements
 

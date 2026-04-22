@@ -155,6 +155,16 @@
       <input type="text" class="form-control" name="comments" id="comments" value="">
     </div>
 
+    <hr>
+    <div class="form-group">
+      <h3>{{_('Custom Properties')}}</h3>
+      <p class="help-block">
+        {{_('Search library-specific metadata such as participants, location, or other custom properties defined for this library.')}}
+        {% if current_user.role_admin() %}
+        <a href="{{ url_for('admin.custom_properties') }}">{{_('Manage property definitions')}}</a>.
+        {% endif %}
+      </p>
+    </div>
     {% if cc|length > 0 %}
     {% for c in cc %}
     <div class="form-group">
@@ -242,6 +252,8 @@
       {% endif %}
     </div>
     {% endfor %}
+    {% else %}
+    <p class="help-block">{{_('No custom properties are defined for this library yet.')}}</p>
     {% endif %}
 
     <button type="submit" id="adv_submit" class="btn btn-default">{{_('Search')}}</button>

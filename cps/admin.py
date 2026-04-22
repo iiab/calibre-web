@@ -24,6 +24,7 @@ import os
 import re
 import json
 import operator
+import shutil
 import time
 import sys
 import string
@@ -52,6 +53,7 @@ from .embed_helper import get_calibre_binarypath
 from .gdriveutils import is_gdrive_ready, gdrive_support
 from .render_template import render_title_template, get_sidebar_config
 from .services.worker import WorkerThread
+from .subproc_wrapper import process_open
 from .usermanagement import user_login_required
 from .cw_babel import get_available_translations, get_available_locale, get_user_locale_language
 from . import debug_info
@@ -87,6 +89,7 @@ except ImportError as err:
     oauth_check = {}
 
 admi = Blueprint('admin', __name__)
+SUPPORTED_CUSTOM_PROPERTY_TYPES = ('text', 'int', 'float', 'bool', 'datetime', 'comments', 'enumeration', 'rating')
 
 
 def admin_required(f):
@@ -101,6 +104,116 @@ def admin_required(f):
         abort(403)
 
     return inner
+
+
+def _custom_property_type_choices():
+    return [
+        ('text', _("Text")),
+        ('int', _("Integer")),
+        ('float', _("Decimal")),
+        ('bool', _("Yes/No")),
+        ('datetime', _("Date")),
+        ('comments', _("Long text")),
+        ('enumeration', _("Choice list")),
+        ('rating', _("Rating")),
+    ]
+
+
+def _default_custom_property_form():
+    return {
+        'label': '',
+        'name': '',
+        'datatype': 'text',
+        'is_multiple': False,
+        'enum_values': '',
+    }
+
+
+def _get_calibredb_binary():
+    configured_path = get_calibre_binarypath("calibredb")
+    if configured_path and os.path.isfile(configured_path):
+        return configured_path
+    return shutil.which("calibredb")
+
+
+def _render_custom_properties(form_data=None):
+    custom_columns = calibre_db.session.query(db.CustomColumns).order_by(db.CustomColumns.id).all()
+    for column in custom_columns:
+        column.supported_in_cw = column.datatype not in db.cc_exceptions
+    return render_title_template(
+        "custom_properties.html",
+        custom_columns=custom_columns,
+        property_types=_custom_property_type_choices(),
+        form_data=form_data or _default_custom_property_form(),
+        title=_("Custom Properties"),
+        page="customproperties"
+    )
+
+
+def _create_custom_property():
+    form_data = _default_custom_property_form()
+    form_data.update({
+        'label': strip_whitespaces(request.form.get("label", "")),
+        'name': strip_whitespaces(request.form.get("name", "")),
+        'datatype': request.form.get("datatype", "text"),
+        'is_multiple': bool(request.form.get("is_multiple")),
+        'enum_values': request.form.get("enum_values", ""),
+    })
+
+    if not form_data["label"] or not form_data["name"]:
+        flash(_("Please provide both a property label and display name."), category="error")
+        return _render_custom_properties(form_data)
+    if re.match(r'^\w*$', form_data["label"]) is None or not form_data["label"][0].isalpha() \
+            or form_data["label"].lower() != form_data["label"]:
+        flash(_("The property label must start with a letter and use only lowercase letters, numbers, and underscores."),
+              category="error")
+        return _render_custom_properties(form_data)
+    if form_data["datatype"] not in SUPPORTED_CUSTOM_PROPERTY_TYPES:
+        flash(_("The selected property type is not supported."), category="error")
+        return _render_custom_properties(form_data)
+    if form_data["datatype"] != 'text':
+        form_data["is_multiple"] = False
+
+    display = {}
+    if form_data["datatype"] == 'enumeration':
+        enum_values = [strip_whitespaces(value) for value in form_data["enum_values"].split(',')]
+        enum_values = [value for value in helper.uniq(enum_values) if value]
+        if not enum_values:
+            flash(_("Choice list properties need at least one option."), category="error")
+            return _render_custom_properties(form_data)
+        display["enum_values"] = enum_values
+
+    calibredb_binary = _get_calibredb_binary()
+    if not calibredb_binary:
+        flash(_("Calibre's calibredb binary could not be found. Configure the Calibre binaries path or install calibre."),
+              category="error")
+        return _render_custom_properties(form_data)
+
+    my_env = os.environ.copy()
+    library_path = config.get_book_path() or config.config_calibre_dir
+    if not library_path:
+        flash(_("Calibre library path is not configured."), category="error")
+        return _render_custom_properties(form_data)
+    if config.config_calibre_split:
+        my_env['CALIBRE_OVERRIDE_DATABASE_PATH'] = os.path.join(config.config_calibre_dir, "metadata.db")
+    command = [calibredb_binary, 'add_custom_column', '--display', json.dumps(display), '--with-library', library_path]
+    if form_data["is_multiple"]:
+        command.append('--is-multiple')
+    command.extend([form_data["label"], form_data["name"], form_data["datatype"]])
+
+    quotes = [0, 3, 5, len(command) - 2]
+    process = process_open(command, quotes=quotes, env=my_env)
+    output, error = process.communicate()
+    if process.returncode != 0:
+        flash((error or output or _("Failed to create the custom property.")).strip(), category="error")
+        return _render_custom_properties(form_data)
+
+    old_session = g.pop("lib_sql", None)
+    if old_session:
+        old_session.remove()
+    calibre_db.reconnect_db(config, ub.app_DB_path)
+    flash(_("Custom property %(name)s created successfully.", name=form_data["name"]), category="success")
+    return redirect(url_for('admin.custom_properties'))
 
 
 @admi.before_app_request
@@ -240,6 +353,15 @@ def db_configuration():
     if request.method == "POST":
         return _db_configuration_update_helper()
     return _db_configuration_result()
+
+
+@admi.route("/admin/customproperties", methods=["GET", "POST"])
+@user_login_required
+@admin_required
+def custom_properties():
+    if request.method == "POST":
+        return _create_custom_property()
+    return _render_custom_properties()
 
 
 @admi.route("/admin/config", methods=["GET"])

@@ -139,6 +139,16 @@
         <input id="btn-upload-cover" name="btn-upload-cover" type="file" accept=".jpg, .jpeg, .png, .webp">
       </div>
     {% endif %}
+      <hr>
+      <div class="form-group">
+        <h3>{{_('Custom Properties')}}</h3>
+        <p class="help-block">
+          {{_('Custom properties are library-specific metadata fields backed by Calibre custom columns. Use them for metadata such as participants, location, or production notes.')}}
+          {% if current_user.role_admin() %}
+          <a href="{{ url_for('admin.custom_properties') }}">{{_('Manage property definitions')}}</a>.
+          {% endif %}
+        </p>
+      </div>
       {% if cc|length > 0 %}
         {% for c in cc %}
           <div class="form-group">
@@ -208,6 +218,8 @@
             {% endif %}
           </div>
         {% endfor %}
+      {% else %}
+      <p class="help-block">{{_('No custom properties are defined for this library yet.')}}</p>
       {% endif %}
 
     <div class="checkbox">

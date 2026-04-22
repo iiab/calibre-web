@@ -712,13 +712,14 @@ class CalibreDB:
 
         cls.config.db_configured = True
 
-        if not cc_classes:
-            try:
-                cc = conn.execute(text("SELECT id, datatype FROM custom_columns"))
-                cls.setup_db_cc_classes(cc)
-            except OperationalError as e:
-                log.error_or_exception(e)
-                return None
+        try:
+            cc = list(conn.execute(text("SELECT id, datatype FROM custom_columns")))
+            missing_cc = cc if not cc_classes else [row for row in cc if row[0] not in cc_classes]
+            if missing_cc:
+                cls.setup_db_cc_classes(missing_cc)
+        except OperationalError as e:
+            log.error_or_exception(e)
+            return None
 
         return scoped_session(sessionmaker(autocommit=False,
                                            autoflush=False,
