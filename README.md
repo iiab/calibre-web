@@ -111,7 +111,7 @@ Calibre-Web is a web app that offers a clean and intuitive interface for browsin
 4. **Configure Calibre Database**: In the admin interface, set the `Location of Calibre database` to the path of the folder containing your Calibre library (where `metadata.db` is located) and click "Save".
 5. **Google Drive Integration**: For hosting your Calibre library on Google Drive, refer to the [Google Drive integration guide](https://github.com/janeczku/calibre-web/wiki/G-Drive-Setup#using-google-drive-integration).
 6. **Admin Configuration**: Configure your instance via the admin page, referring to the [Basic Configuration](https://github.com/janeczku/calibre-web/wiki/Configuration#basic-configuration) and [UI Configuration](https://github.com/janeczku/calibre-web/wiki/Configuration#ui-configuration) guides.
-7. **Custom Properties**: Use **Admin → Manage Custom Properties** to create library-specific fields such as participants, location, or production notes. Those properties appear on the edit metadata page, content details, and advanced search.
+7. **Custom Properties**: Use **Admin → Manage Custom Properties** to create library-specific fields such as participants, location, or production notes. Those properties appear on the edit metadata page, content details, advanced search, the browse sidebar, and OPDS navigation.
 
 ## Requirements
 

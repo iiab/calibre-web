@@ -1072,6 +1072,10 @@ class CalibreDB:
 
         return cc
 
+    def get_browseable_cc_columns(self, config):
+        return [col for col in self.get_cc_columns(config, filter_config_custom_read=True)
+                if col.normalized and col.datatype in ('text', 'enumeration', 'rating')]
+
     # read search results from calibre-database and return it (function is used for feed and simple search
     def get_search_results(self, term, config, offset=None, order=None, limit=None, *join):
         order = order[0] if order else [Books.sort]

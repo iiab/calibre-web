@@ -372,6 +372,42 @@ def generate_char_list(entries): # data_colum, db_link):
     return char_list
 
 
+def get_browseable_custom_column(column_id):
+    for column in calibre_db.get_browseable_cc_columns(config):
+        if column.id == column_id:
+            return column
+    return None
+
+
+def custom_column_page(column_id):
+    return 'custom_column_' + str(column_id)
+
+
+def format_custom_column_value(column, value):
+    if column.datatype == 'rating':
+        return '%.1f' % (value / 2)
+    return str(value)
+
+
+def get_custom_column_entries(column, order):
+    cc_class = db.cc_classes[column.id]
+    entries = (calibre_db.session.query(cc_class, func.count(db.Books.id).label('count'))
+               .join(cc_class.books)
+               .filter(calibre_db.common_filters())
+               .group_by(cc_class.id)
+               .order_by(order)
+               .all())
+    formatted_entries = [[db.Category(format_custom_column_value(column, entry[0].value), entry[0].id), entry[1]]
+                         for entry in entries]
+    no_value_count = (calibre_db.session.query(db.Books)
+                      .filter(~getattr(db.Books, custom_column_page(column.id)).any())
+                      .filter(calibre_db.common_filters())
+                      .count())
+    if no_value_count:
+        formatted_entries.append([db.Category(_("None"), "none"), no_value_count])
+    return formatted_entries
+
+
 def query_char_list(data_colum, db_link):
     results = (calibre_db.session.query(func.upper(func.substr(data_colum, 1, 1)).label('char'))
             .join(db_link).join(db.Books).filter(calibre_db.common_filters())
@@ -743,6 +779,44 @@ def render_category_books(page, book_id, order):
                                  title=_("Category: %(name)s", name=tagsname), page="category", order=order[1])
 
 
+@web.route("/customproperties/<int:column_id>/<book_id>", defaults={'page': 1})
+@web.route("/customproperties/<int:column_id>/<book_id>/page/<int:page>")
+@login_required_if_no_ano
+def custom_property_books(column_id, book_id, page):
+    column = get_browseable_custom_column(column_id)
+    if not column or not current_user.check_visibility(constants.SIDEBAR_CATEGORY):
+        abort(404)
+    page_key = custom_column_page(column_id)
+    order = get_sort_function('stored', page_key)
+    relation = getattr(db.Books, page_key)
+    if book_id == 'none':
+        entries, random, pagination = calibre_db.fill_indexpage(page, 0,
+                                                                db.Books,
+                                                                ~relation.any(),
+                                                                [order[0][0], db.Series.name, db.Books.series_index],
+                                                                True, config.config_read_column,
+                                                                db.books_series_link,
+                                                                db.Books.id == db.books_series_link.c.book,
+                                                                db.Series)
+        value_name = _("None")
+    else:
+        value = calibre_db.session.query(db.cc_classes[column_id]).filter(db.cc_classes[column_id].id == book_id).first()
+        if not value:
+            abort(404)
+        entries, random, pagination = calibre_db.fill_indexpage(page, 0,
+                                                                db.Books,
+                                                                relation.any(db.cc_classes[column_id].id == book_id),
+                                                                [order[0][0], db.Series.name, db.Books.series_index],
+                                                                True, config.config_read_column,
+                                                                db.books_series_link,
+                                                                db.Books.id == db.books_series_link.c.book,
+                                                                db.Series)
+        value_name = format_custom_column_value(column, value.value)
+    return render_title_template('index.html', random=random, entries=entries, pagination=pagination, id=book_id,
+                                 title=_("%(column)s: %(name)s", column=column.name, name=value_name),
+                                 page=page_key, order=order[1])
+
+
 def render_language_books(page, name, order):
     try:
         if name.lower() != "none":
@@ -1044,6 +1118,27 @@ def publisher_list():
                                      title=_("Publishers"), page="publisherlist", data="publisher", order=order_no)
     else:
         abort(404)
+
+
+@web.route("/customproperties/<int:column_id>")
+@login_required_if_no_ano
+def custom_property_list(column_id):
+    column = get_browseable_custom_column(column_id)
+    if not column or not current_user.check_visibility(constants.SIDEBAR_CATEGORY):
+        abort(404)
+    page_key = custom_column_page(column_id)
+    if current_user.get_view_property(page_key, 'dir') == 'desc':
+        order = db.cc_classes[column_id].value.desc()
+        order_no = 0
+    else:
+        order = db.cc_classes[column_id].value.asc()
+        order_no = 1
+    entries = get_custom_column_entries(column, order)
+    entries = sorted(entries, key=lambda x: x[0].name.lower(), reverse=not order_no)
+    char_list = generate_char_list(entries)
+    return render_title_template('list.html', entries=entries, folder='web.custom_property_books', charlist=char_list,
+                                 title=column.name, page=page_key, data=page_key, order=order_no,
+                                 custom_column=column)
 
 
 @web.route("/series")
