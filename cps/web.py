@@ -1782,6 +1782,16 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_IMAGE:
                 entry.image_entries.append(media_format.format.lower())
 
+        # Choose a single media context for detail-page labels (tie-breaker priority)
+        if entry.video_entries:
+            media_context = "video"
+        elif entry.image_entries:
+            media_context = "image"
+        elif entry.audio_entries:
+            media_context = "audio"
+        else:
+            media_context = "book"
+
         entry.user_comments = ub.session.query(ub.ContentComments).filter(ub.ContentComments.book_id == book_id).order_by(ub.ContentComments.created_at.desc()).all()
         if current_user.id is not None:
             entry.user_rating = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.book_id == book_id, ub.ContentRatings.user_id == int(current_user.id)).first()
@@ -1794,6 +1804,7 @@ def show_book(book_id):
                                      is_xhr=request.headers.get('X-Requested-With') == 'XMLHttpRequest',
                                      title=entry.title,
                                      books_shelfs=book_in_shelves,
+                                     media_context=media_context,
                                      page="book")
     else:
         log.debug("Selected book is unavailable. File does not exist or is not accessible")

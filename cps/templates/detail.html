@@ -309,10 +309,27 @@
                           method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <label class="block-label">
-                            <input id="have_read_cb" data-checked="{{ _('Mark As Unread') }}"
-                                   data-unchecked="{{ _('Mark As Read') }}" type="checkbox"
+                            {% set mc = media_context|default('book') %}
+                            {% set toggle_action = _('Read') %}
+                            {% set toggle_checked = _('Mark As Unread') %}
+                            {% set toggle_unchecked = _('Mark As Read') %}
+                            {% set toggle_tooltip = _('Mark Book as Read or Unread') %}
+
+                            {% if mc == 'video' or mc == 'image' %}
+                                {% set toggle_action = _('Viewed') %}
+                                {% set toggle_checked = _('Mark As Unviewed') %}
+                                {% set toggle_unchecked = _('Mark As Viewed') %}
+                                {% set toggle_tooltip = _('Mark content as Viewed or Unviewed') %}
+                            {% elif mc == 'audio' %}
+                                {% set toggle_action = _('Listened') %}
+                                {% set toggle_checked = _('Mark As Unlistened') %}
+                                {% set toggle_unchecked = _('Mark As Listened') %}
+                                {% set toggle_tooltip = _('Mark content as Listened or Unlistened') %}
+                            {% endif %}
+                            <input id="have_read_cb" data-checked="{{ toggle_checked }}"
+                                   data-unchecked="{{ toggle_unchecked }}" type="checkbox"
                                    {% if entry.read_status %}checked{% endif %}>
-                            <span data-toggle="tooltip" title="{{_('Mark Book as Read or Unread')}}">{{ _('Read') }}</span>
+                            <span data-toggle="tooltip" title="{{ toggle_tooltip }}">{{ toggle_action }}</span>
                         </label>
                     </form>
                     </p>
