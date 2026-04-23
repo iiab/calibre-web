@@ -81,12 +81,25 @@ def get_sidebar_config(kwargs=None):
         {"glyph": "glyphicon-star", "text": labels["top_rated"], "link": 'web.books_list', "id": "rated",
          "visibility": constants.SIDEBAR_BEST_RATED, 'public': True, "page": "rated",
          "show_text": _('Show Top Rated Books'), "config_show": True})
+
+    read_page = "read"
+    unread_page = "unread"
+    if media_context == "video":
+        read_page = "videos_read"
+        unread_page = "videos_unread"
+    elif media_context == "audio":
+        read_page = "audios_read"
+        unread_page = "audios_unread"
+    elif media_context == "image":
+        read_page = "images_read"
+        unread_page = "images_unread"
+
     sidebar.append({"glyph": "glyphicon-eye-open", "text": labels["read"], "link": 'web.books_list', "id": "read",
                     "visibility": constants.SIDEBAR_READ_AND_UNREAD, 'public': (not current_user.is_anonymous),
-                    "page": "read", "show_text": _('Show Read and Unread'), "config_show": content})
+                    "page": read_page, "show_text": _('Show Read and Unread'), "config_show": content})
     sidebar.append(
         {"glyph": "glyphicon-eye-close", "text": labels["unread"], "link": 'web.books_list', "id": "unread",
-         "visibility": constants.SIDEBAR_READ_AND_UNREAD, 'public': (not current_user.is_anonymous), "page": "unread",
+         "visibility": constants.SIDEBAR_READ_AND_UNREAD, 'public': (not current_user.is_anonymous), "page": unread_page,
          "show_text": _('Show unread'), "config_show": False})
     sidebar.append({"glyph": "glyphicon-random", "text": _('Discover'), "link": 'web.books_list', "id": "rand",
                     "visibility": constants.SIDEBAR_RANDOM, 'public': True, "page": "discover",
