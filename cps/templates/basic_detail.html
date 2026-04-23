@@ -31,7 +31,7 @@
 <h2>Details</h2>
 
 {% if entry.series|length > 0 %}
-  <p>{{ _("Book %(index)s of %(range)s", index=entry.series_index | formatfloat(2), range=(entry.series[0].name)|safe) }}</p>
+  <p>{{ _("Book %(index)s of %(range)s", index=entry.series_index|formatfloat(2), range=entry.series[0].name|e) }}</p>
 {% endif %}
 
 {% if entry.languages|length > 0 %}
@@ -74,7 +74,7 @@
 {% if entry.comments|length > 0 and entry.comments[0].text|length > 0 %}
     <div>
         <h2 id="decription">{{ _('Description:') }}</h2>
-        {{ entry.comments[0].text|safe }}
+        {{ entry.comments[0].text|clean_string|safe }}
     </div>
 {% endif %}
 </div>
