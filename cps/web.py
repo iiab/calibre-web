@@ -210,11 +210,14 @@ def update_view():
 
 # The frontend can now use this data to render the new comment without a reload.
 @web.route("/ajax/comment/<int:book_id>", methods=['POST'])
-@user_login_required
+@login_required_if_no_ano
 def post_comment(book_id):
-    comment_text = request.form.get("comment")
+    if not current_user.is_authenticated:
+        return jsonify({"error": _("Please log in to post a comment.")}), 401
+
+    comment_text = (request.form.get("comment") or "").strip()
     if not comment_text:
-        return jsonify({"error": "Missing comment text"}), 400
+        return jsonify({"error": _("Missing comment text")}), 400
 
     new_comment = ub.ContentComments(user_id=int(current_user.id), book_id=book_id, comment=comment_text)
     ub.session.add(new_comment)
@@ -227,11 +230,14 @@ def post_comment(book_id):
 
 
 @web.route("/ajax/rate/<int:book_id>", methods=['POST'])
-@user_login_required
+@login_required_if_no_ano
 def post_rate(book_id):
     rating_val = request.form.get("rating", type=int)
     if rating_val not in [1, -1, 0]:
         return _("Invalid rating value"), 400
+
+    if current_user.id is None:
+        return _("Please log in to rate this content"), 401
 
     existing = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.user_id == int(current_user.id),
                                                         ub.ContentRatings.book_id == book_id).first()
@@ -436,6 +442,18 @@ def render_books_list(data, sort_param, book_id, page):
         return render_read_books(page, False, order=order)
     elif data == "read":
         return render_read_books(page, True, order=order)
+    elif data == "videos_unread":
+        return render_read_media_books(page, False, "video", order=order)
+    elif data == "videos_read":
+        return render_read_media_books(page, True, "video", order=order)
+    elif data == "images_unread":
+        return render_read_media_books(page, False, "image", order=order)
+    elif data == "images_read":
+        return render_read_media_books(page, True, "image", order=order)
+    elif data == "audios_unread":
+        return render_read_media_books(page, False, "audio", order=order)
+    elif data == "audios_read":
+        return render_read_media_books(page, True, "audio", order=order)
     elif data == "hot":
         return render_hot_books(page, order)
     elif data == "download":
@@ -861,6 +879,63 @@ def render_read_books(page, are_read, as_xml=False, order=None):
                                      title=name, page=page_name, order=order[1])
 
 
+def render_read_media_books(page, are_read, media_type, as_xml=False, order=None):
+    sort_param = order[0] if order else []
+    if not config.config_read_column:
+        if are_read:
+            db_filter = and_(ub.ReadBook.user_id == int(current_user.id),
+                             ub.ReadBook.read_status == ub.ReadBook.STATUS_FINISHED)
+        else:
+            db_filter = coalesce(ub.ReadBook.read_status, 0) != ub.ReadBook.STATUS_FINISHED
+    else:
+        try:
+            if are_read:
+                db_filter = db.cc_classes[config.config_read_column].value == True
+            else:
+                db_filter = coalesce(db.cc_classes[config.config_read_column].value, False) != True
+        except (KeyError, AttributeError, IndexError):
+            log.error("Custom Column No.{} does not exist in calibre database".format(config.config_read_column))
+            if not as_xml:
+                flash(_("Custom Column No.%(column)d does not exist in calibre database",
+                        column=config.config_read_column),
+                      category="error")
+                return redirect(url_for("web.index"))
+            return []
+
+    media_filter = get_media_db_filter(db, media_type)
+    if media_filter is not True:
+        db_filter = and_(db_filter, media_filter)
+
+    entries, random, pagination = calibre_db.fill_indexpage(page, 0,
+                                                            db.Books,
+                                                            db_filter,
+                                                            sort_param,
+                                                            True, config.config_read_column,
+                                                            db.books_series_link,
+                                                            db.Books.id == db.books_series_link.c.book,
+                                                            db.Series)
+
+    if as_xml:
+        return entries, pagination
+
+    label_map = {
+        "video": {"read": _('Viewed Videos'), "unread": _('Unviewed Videos')},
+        "image": {"read": _('Viewed Images'), "unread": _('Unviewed Images')},
+        "audio": {"read": _('Listened Audio'), "unread": _('Unlistened Audio')},
+        "book": {"read": _('Read Books'), "unread": _('Unread Books')},
+    }
+    labels = label_map.get(media_type, label_map["book"])
+    if are_read:
+        name = labels["read"] + ' (' + str(pagination.total_count) + ')'
+        page_name = f"{media_type}s_read"
+    else:
+        name = labels["unread"] + ' (' + str(pagination.total_count) + ')'
+        page_name = f"{media_type}s_unread"
+
+    return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
+                                 title=name, page=page_name, order=order[1], media_context=media_type)
+
+
 def render_archived_books(page, sort_param):
     media_labels = get_active_media_labels()
     order = sort_param[0] or []
@@ -901,7 +976,11 @@ def books_list(data, sort_param, book_id, page):
     return render_books_list(data, sort_param, book_id, page)
 
 # Limit number of routes to avoid redirects
-data =["rated", "discover", "unread", "read", "hot", "download", "author", "publisher", "series", "ratings", "formats",
+data =["rated", "discover", "unread", "read",
+       "videos_unread", "videos_read",
+       "images_unread", "images_read",
+       "audios_unread", "audios_read",
+       "hot", "download", "author", "publisher", "series", "ratings", "formats",
        "category", "language", "archived", "search", "advsearch", "newest", "videos", "audios", "images", "books"]
 for d in data:
     web.add_url_rule('/{}/<sort_param>'.format(d), view_func=books_list, defaults={'page': 1, 'book_id': 1, "data": d})
@@ -1776,8 +1855,18 @@ def show_book(book_id):
             if media_format.format.lower() in constants.EXTENSIONS_IMAGE:
                 entry.image_entries.append(media_format.format.lower())
 
+        # Choose a single media context for detail-page labels (tie-breaker priority)
+        if entry.video_entries:
+            media_context = "video"
+        elif entry.image_entries:
+            media_context = "image"
+        elif entry.audio_entries:
+            media_context = "audio"
+        else:
+            media_context = "book"
+
         entry.user_comments = ub.session.query(ub.ContentComments).filter(ub.ContentComments.book_id == book_id).order_by(ub.ContentComments.created_at.desc()).all()
-        if current_user.is_authenticated:
+        if current_user.id is not None:
             entry.user_rating = ub.session.query(ub.ContentRatings).filter(ub.ContentRatings.book_id == book_id, ub.ContentRatings.user_id == int(current_user.id)).first()
         else:
             entry.user_rating = None
@@ -1788,6 +1877,7 @@ def show_book(book_id):
                                      is_xhr=request.headers.get('X-Requested-With') == 'XMLHttpRequest',
                                      title=entry.title,
                                      books_shelfs=book_in_shelves,
+                                     media_context=media_context,
                                      page="book")
     else:
         log.debug("Selected book is unavailable. File does not exist or is not accessible")
