@@ -23,6 +23,12 @@ if ($(".tiny_editor").length) {
     });
 }
 
+$("#book_edit_frm").on("submit", function () {
+    if (typeof tinymce !== "undefined") {
+        tinymce.triggerSave();
+    }
+});
+
 $(".datepicker").datepicker({
     format: "yyyy-mm-dd",
     language: language
@@ -265,4 +271,3 @@ $("#xchange").click(function () {
     $("#title").val($("#authors").val());
     $("#authors").val(title);
 });
-

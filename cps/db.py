@@ -601,7 +601,7 @@ class CalibreDB:
                           'id': Column(Integer, primary_key=True)}
                 if row.datatype == 'float':
                     ccdict['value'] = Column(Float)
-                elif row.datatype == 'int':
+                elif row.datatype in ('int', 'rating'):
                     ccdict['value'] = Column(Integer)
                 elif row.datatype == 'datetime':
                     ccdict['value'] = Column(TIMESTAMP)
