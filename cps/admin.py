@@ -89,7 +89,7 @@ except ImportError as err:
     oauth_check = {}
 
 admi = Blueprint('admin', __name__)
-SUPPORTED_CUSTOM_PROPERTY_TYPES = ('text', 'int', 'float', 'bool', 'datetime', 'comments', 'enumeration', 'rating')
+SUPPORTED_CUSTOM_PROPERTY_TYPES = ('text', 'int', 'float', 'bool', 'datetime', 'enumeration', 'rating')
 
 
 def admin_required(f):
@@ -113,7 +113,6 @@ def _custom_property_type_choices():
         ('float', _("Decimal")),
         ('bool', _("Yes/No")),
         ('datetime', _("Date")),
-        ('comments', _("Long text")),
         ('enumeration', _("Choice list")),
         ('rating', _("Rating")),
     ]
