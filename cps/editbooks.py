@@ -1493,8 +1493,11 @@ def edit_cc_data_value(book_id, book, c, to_save, cc_db_value, cc_string):
 def edit_cc_data_string(book, c, to_save, cc_db_value, cc_string):
     changed = False
     if c.datatype == 'rating':
-        to_save[cc_string] = str(int(float(to_save[cc_string]) * 2))
-    if strip_whitespaces(to_save[cc_string]) != cc_db_value:
+        to_save[cc_string] = int(float(to_save[cc_string]) * 2)
+        compare_value = to_save[cc_string]
+    else:
+        compare_value = strip_whitespaces(to_save[cc_string])
+    if compare_value != cc_db_value:
         if cc_db_value is not None:
             # remove old cc_val
             del_cc = getattr(book, cc_string)[0]
@@ -1504,15 +1507,15 @@ def edit_cc_data_string(book, c, to_save, cc_db_value, cc_string):
                 changed = True
         cc_class = db.cc_classes[c.id]
         new_cc = calibre_db.session.query(cc_class).filter(
-            cc_class.value == strip_whitespaces(to_save[cc_string])).first()
+            cc_class.value == compare_value).first()
         # if no cc val is found add it
         if new_cc is None:
-            new_cc = cc_class(value=strip_whitespaces(to_save[cc_string]))
+            new_cc = cc_class(value=compare_value)
             calibre_db.session.add(new_cc)
             changed = True
             calibre_db.session.flush()
             new_cc = calibre_db.session.query(cc_class).filter(
-                cc_class.value == strip_whitespaces(to_save[cc_string])).first()
+                cc_class.value == compare_value).first()
         # add cc value to book
         getattr(book, cc_string).append(new_cc)
     return changed, to_save

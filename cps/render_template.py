@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from flask import render_template, g, abort, request
+from flask import render_template, g, abort, request, url_for
 from flask_babel import gettext as _
 from werkzeug.local import LocalProxy
 from .cw_login import current_user
@@ -29,6 +29,7 @@ from .ub import User
 log = logger.create()
 
 def get_sidebar_config(kwargs=None):
+    from . import calibre_db
     kwargs = kwargs or []
     simple = bool([e for e in ['kindle', 'tolino', "kobo", "bookeen"]
                    if (e in request.headers.get('User-Agent', "").lower())])
@@ -91,6 +92,19 @@ def get_sidebar_config(kwargs=None):
     sidebar.append({"glyph": "glyphicon-file", "text": _('File formats'), "link": 'web.formats_list', "id": "format",
                     "visibility": constants.SIDEBAR_FORMAT, 'public': True, "no_param":True,
                     "page": "format", "show_text": _('Show File Formats Section'), "config_show": True})
+    for col in calibre_db.get_browseable_cc_columns(config):
+        sidebar.append({
+            "glyph": "glyphicon-tag",
+            "text": col.name,
+            "link": 'web.custom_property_list',
+            "id": 'custom_column_' + str(col.id),
+            "visibility": constants.SIDEBAR_CATEGORY,
+            'public': True,
+            "page": 'custom_column_' + str(col.id),
+            "show_text": _('Show %(column)s Section', column=col.name),
+            "config_show": False,
+            "url": url_for('web.custom_property_list', column_id=col.id),
+        })
     sidebar.append(
         {"glyph": "glyphicon-folder-open", "text": _('Archived Books'), "link": 'web.books_list', "id": "archived",
          "visibility": constants.SIDEBAR_ARCHIVED, 'public': (not current_user.is_anonymous), "page": "archived",

@@ -33,7 +33,7 @@ from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session, selectinload
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, InvalidRequestError
 try:
     # Compatibility with sqlalchemy 2.0
     from sqlalchemy.orm import declarative_base
@@ -601,7 +601,7 @@ class CalibreDB:
                           'id': Column(Integer, primary_key=True)}
                 if row.datatype == 'float':
                     ccdict['value'] = Column(Float)
-                elif row.datatype == 'int':
+                elif row.datatype in ('int', 'rating'):
                     ccdict['value'] = Column(Integer)
                 elif row.datatype == 'datetime':
                     ccdict['value'] = Column(TIMESTAMP)
@@ -712,13 +712,14 @@ class CalibreDB:
 
         cls.config.db_configured = True
 
-        if not cc_classes:
-            try:
-                cc = conn.execute(text("SELECT id, datatype FROM custom_columns"))
-                cls.setup_db_cc_classes(cc)
-            except OperationalError as e:
-                log.error_or_exception(e)
-                return None
+        try:
+            cc = list(conn.execute(text("SELECT id, datatype FROM custom_columns")))
+            missing_cc = cc if not cc_classes else [row for row in cc if row[0] not in cc_classes]
+            if missing_cc:
+                cls.setup_db_cc_classes(missing_cc)
+        except OperationalError as e:
+            log.error_or_exception(e)
+            return None
 
         return scoped_session(sessionmaker(autocommit=False,
                                            autoflush=False,
@@ -1056,7 +1057,11 @@ class CalibreDB:
         return base_query.filter(or_(*filter_expression))
 
     def get_cc_columns(self, config, filter_config_custom_read=False):
-        tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+        try:
+            tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+        except (OperationalError, InvalidRequestError) as ex:
+            log.warning("Unable to load custom columns: %s", ex)
+            return []
         cc = []
         r = None
         if config.config_columns_to_ignore:
@@ -1070,6 +1075,10 @@ class CalibreDB:
             cc.append(col)
 
         return cc
+
+    def get_browseable_cc_columns(self, config):
+        return [col for col in self.get_cc_columns(config, filter_config_custom_read=True)
+                if col.normalized and col.datatype in ('text', 'enumeration', 'rating')]
 
     # read search results from calibre-database and return it (function is used for feed and simple search
     def get_search_results(self, term, config, offset=None, order=None, limit=None, *join):
