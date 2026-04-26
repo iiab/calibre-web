@@ -33,7 +33,7 @@ from sqlalchemy import String, Integer, Boolean, TIMESTAMP, Float
 from sqlalchemy.orm import relationship, sessionmaker, scoped_session, selectinload
 from sqlalchemy.orm.collections import InstrumentedList
 from sqlalchemy.ext.declarative import DeclarativeMeta
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, InvalidRequestError
 try:
     # Compatibility with sqlalchemy 2.0
     from sqlalchemy.orm import declarative_base
@@ -1057,7 +1057,11 @@ class CalibreDB:
         return base_query.filter(or_(*filter_expression))
 
     def get_cc_columns(self, config, filter_config_custom_read=False):
-        tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+        try:
+            tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+        except (OperationalError, InvalidRequestError) as ex:
+            log.warning("Unable to load custom columns: %s", ex)
+            return []
         cc = []
         r = None
         if config.config_columns_to_ignore:
