@@ -132,15 +132,15 @@
     {% else %}
     <title>{{entry.name}}</title>
     {% endif %}
-    <id>{{ url_for(folder, book_id=entry.id) }}</id>
-    <link rel="subsection" type="application/atom+xml;profile=opds-catalog" href="{{url_for(folder, book_id=entry.id)}}"/>
+    <id>{% if custom_column is defined %}{{ url_for(folder, column_id=custom_column.id, book_id=entry.id) }}{% else %}{{ url_for(folder, book_id=entry.id) }}{% endif %}</id>
+    <link rel="subsection" type="application/atom+xml;profile=opds-catalog" href="{% if custom_column is defined %}{{url_for(folder, column_id=custom_column.id, book_id=entry.id)}}{% else %}{{url_for(folder, book_id=entry.id)}}{% endif %}"/>
   </entry>
   {% endfor %}
   {% for entry in letterelements %}
   <entry>
     <title>{{entry['name']}}</title>
-    <id>{{ url_for(folder, book_id=entry['id']) }}</id>
-    <link rel="subsection" type="application/atom+xml;profile=opds-catalog" href="{{url_for(folder, book_id=entry['id'])}}"/>
+    <id>{% if custom_column is defined %}{{ url_for(folder, column_id=custom_column.id, book_id=entry['id']) }}{% else %}{{ url_for(folder, book_id=entry['id']) }}{% endif %}</id>
+    <link rel="subsection" type="application/atom+xml;profile=opds-catalog" href="{% if custom_column is defined %}{{url_for(folder, column_id=custom_column.id, book_id=entry['id'])}}{% else %}{{url_for(folder, book_id=entry['id'])}}{% endif %}"/>
   </entry>
   {% endfor %}
 </feed>

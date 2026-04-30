@@ -264,43 +264,60 @@
                 </div>
             {% endif %}
             {% if cc|length > 0 %}
-
-
+                {% set custom = namespace(has_values=false) %}
                 {% for c in cc %}
                     {% if entry['custom_column_' ~ c.id]|length > 0 %}
-                        <div class="real_custom_columns">
-                            {{ c.name }}:
-                            {% for column in entry['custom_column_' ~ c.id] %}
-                                {% if c.datatype == 'rating' %}
-                                    {{ (column.value / 2)|formatfloat }}
-                                {% else %}
-                                    {% if c.datatype == 'bool' %}
-                                        {% if column.value == true %}
-                                            <span class="glyphicon glyphicon-ok"></span>
-                                        {% else %}
-                                            <span class="glyphicon glyphicon-remove"></span>
-                                        {% endif %}
-                                    {% else %}
-                                        {% if c.datatype == 'float' %}
-                                            {{ column.value|formatfloat(2) }}
-                                        {% elif c.datatype == 'datetime' %}
-                                            {{ column.value|formatdate }}
-                                        {% elif c.datatype == 'comments' %}
-                                            {{ column.value|safe }}
-                                        {% elif c.datatype == 'series' %}
-                                            {{ '%s [%s]' % (column.value, column.extra|formatfloat(2)) }}
-                                        {% elif c.datatype == 'text' %}
-                                            {{ column.value.strip() }}{% if not loop.last %}, {% endif %}
-                                        {% else %}
-                                            {{ column.value }}
-                                        {% endif %}
-                                    {% endif %}
-                                {% endif %}
-                            {% endfor %}
-
-                        </div>
+                        {% set custom.has_values = true %}
                     {% endif %}
                 {% endfor %}
+                {% if custom.has_values %}
+                    <div class="real_custom_columns">
+                        <h4>{{_('Custom Properties')}}</h4>
+                        {% for c in cc %}
+                            {% if entry['custom_column_' ~ c.id]|length > 0 %}
+                                <div class="real_custom_columns">
+                                    {{ c.name }}:
+                                    {% for column in entry['custom_column_' ~ c.id] %}
+                                        {% if c.datatype == 'rating' %}
+                                            <span class="rating">
+                                                {% for number in range((column.value / 2)|int(2)) %}
+                                                    <span class="glyphicon glyphicon-star good"></span>
+                                                    {% if loop.last and loop.index < 5 %}
+                                                        {% for numer in range(5 - loop.index) %}
+                                                            <span class="glyphicon glyphicon-star-empty"></span>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </span>
+                                        {% else %}
+                                            {% if c.datatype == 'bool' %}
+                                                {% if column.value == true %}
+                                                    <span class="glyphicon glyphicon-ok"></span>
+                                                {% else %}
+                                                    <span class="glyphicon glyphicon-remove"></span>
+                                                {% endif %}
+                                            {% else %}
+                                                {% if c.datatype == 'float' %}
+                                                    {{ column.value|formatfloat(2) }}
+                                                {% elif c.datatype == 'datetime' %}
+                                                    {{ column.value|formatdate }}
+                                                {% elif c.datatype == 'comments' %}
+                                                    {{ column.value|safe }}
+                                                {% elif c.datatype == 'series' %}
+                                                    {{ '%s [%s]' % (column.value, column.extra|formatfloat(2)) }}
+                                                {% elif c.datatype == 'text' %}
+                                                    {{ column.value.strip() }}{% if not loop.last %}, {% endif %}
+                                                {% else %}
+                                                    {{ column.value }}
+                                                {% endif %}
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
             {% endif %}
             {% if not current_user.is_anonymous %}
 

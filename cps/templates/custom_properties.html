@@ -1,0 +1,79 @@
+{% extends "layout.html" %}
+{% block body %}
+<div class="discover">
+  <h1 class="{{page}}">{{title}}</h1>
+  <div class="col-md-10 col-lg-8">
+    <div class="alert alert-info" role="alert">
+      <strong>{{_('Custom Properties')}}</strong>
+      {{_('Custom properties are library-specific fields backed by Calibre custom columns. Use them for metadata such as participants, location, production notes, or other local classifications.')}}
+    </div>
+
+    <h3>{{_('Existing Properties')}}</h3>
+    {% if custom_columns %}
+    <div class="table-responsive">
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <th>{{_('Name')}}</th>
+            <th>{{_('Label')}}</th>
+            <th>{{_('Type')}}</th>
+            <th>{{_('Multiple')}}</th>
+            <th>{{_('Visible in Calibre-Web')}}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for column in custom_columns %}
+          <tr>
+            <td>{{ column.name }}</td>
+            <td>#{{ column.label }}</td>
+            <td>{{ column.datatype }}</td>
+            <td>{% if column.is_multiple %}{{_('Yes')}}{% else %}{{_('No')}}{% endif %}</td>
+            <td>{% if column.supported_in_cw %}{{_('Yes')}}{% else %}{{_('No')}}{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="help-block">{{_('No custom properties are defined yet.')}}</p>
+    {% endif %}
+
+    <hr>
+    <h3>{{_('Create Property')}}</h3>
+    <p class="help-block">{{_('New properties become available in edit metadata, content details, and advanced search after they are created.')}}</p>
+    <form role="form" method="POST" action="{{ url_for('admin.custom_properties') }}" autocomplete="off">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-group">
+        <label for="name">{{_('Display Name')}}</label>
+        <input type="text" class="form-control" id="name" name="name" value="{{ form_data.get('name', '') }}" required>
+      </div>
+      <div class="form-group">
+        <label for="label">{{_('Machine Label')}}</label>
+        <input type="text" class="form-control" id="label" name="label" value="{{ form_data.get('label', '') }}" pattern="[a-z][a-z0-9_]*" required>
+        <p class="help-block">{{_('Used internally by Calibre. Start with a lowercase letter and use only lowercase letters, numbers, and underscores.')}}</p>
+      </div>
+      <div class="form-group">
+        <label for="datatype">{{_('Property Type')}}</label>
+        <select class="form-control" id="datatype" name="datatype">
+          {% for datatype, label in property_types %}
+          <option value="{{ datatype }}" {% if form_data.get('datatype') == datatype %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="checkbox">
+        <label>
+          <input type="checkbox" id="is_multiple" name="is_multiple" {% if form_data.get('is_multiple') %}checked{% endif %}>
+          {{_('Allow multiple values (text properties only)')}}
+        </label>
+      </div>
+      <div class="form-group">
+        <label for="enum_values">{{_('Choice List Options')}}</label>
+        <input type="text" class="form-control" id="enum_values" name="enum_values" value="{{ form_data.get('enum_values', '') }}">
+        <p class="help-block">{{_('Required only for choice list properties. Enter comma-separated values.')}}</p>
+      </div>
+      <button id="custom_property_submit" type="submit" class="btn btn-default">{{_('Create Property')}}</button>
+      <a href="{{ url_for('admin.admin') }}" class="btn btn-default">{{_('Back')}}</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

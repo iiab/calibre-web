@@ -100,6 +100,15 @@
     <updated>{{ current_time }}</updated>
     <content type="text">{{_('Books ordered by category')}}</content>
   </entry>
+  {% for column in custom_columns %}
+  <entry>
+    <title>{{column.name}}</title>
+    <link href="{{url_for('opds.feed_custom_property_index', column_id=column.id)}}" type="application/atom+xml;profile=opds-catalog"/>
+    <id>{{url_for('opds.feed_custom_property_index', column_id=column.id)}}</id>
+    <updated>{{ current_time }}</updated>
+    <content type="text">{{_('Books ordered by %(column)s', column=column.name)}}</content>
+  </entry>
+  {% endfor %}
   {% endif %}
   {% if current_user.check_visibility(g.constants.SIDEBAR_SERIES) %}
   <entry>
