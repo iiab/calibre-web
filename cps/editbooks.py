@@ -49,6 +49,7 @@ from .redirect import get_redirect_location
 from .file_helper import validate_mime_type
 from .usermanagement import user_login_required, login_required_if_no_ano
 from .string_helper import strip_whitespaces
+from .services.xb_utils import MappingService
 
 editbook = Blueprint('edit-book', __name__)
 log = logger.create()
@@ -234,7 +235,7 @@ def meta():
         return resp
 
     log.info("Received metadata request: %s", request.args)
-    def move_mediafile(requested_file, current_user_name=None, shelf_id=None):
+    def move_mediafile(requested_file, current_user_name=None, shelf_id=None, media_id=None):
         log.info("Requested file: %s", requested_file)
         requested_file = open(requested_file, "rb")
         requested_file.filename = os.path.basename(requested_file.name)
@@ -286,13 +287,15 @@ def meta():
             link = '<a href="{}">{}</a>'.format(
                 url_for("web.show_book", book_id=book_id), escape(title)
             )
- 
+
             helper.add_book_to_thumbnail_cache(book_id)
 
             if shelf_id is not None:
                 shelf.add_to_shelf_as_guest(shelf_id, book_id)
 
             book_path = db_book.path
+
+            MappingService().add_book_media_mapping(media_id, book_id)
 
         except (OperationalError, IntegrityError, StaleDataError) as e:
             calibre_db.session.rollback()
@@ -304,6 +307,9 @@ def meta():
                 ),
                 category="error",
             )
+        finally:
+            MappingService().session.close()
+            MappingService().db.remove_session()
 
         new_book_path = os.path.join(config.config_calibre_dir, book_path)
         resp = {"file_downloaded": link, "shelf_id": shelf_id, "new_book_path": new_book_path}
@@ -313,13 +319,14 @@ def meta():
         requested_file = request.args.get("requested_file", None)
         current_user_name = request.args.get("current_user_name", None)
         shelf_id = request.args.get("shelf_id", None)
+        media_id = request.args.get("media_id", None)
         try :
-            resp = move_mediafile(requested_file, current_user_name, shelf_id)
+            resp = move_mediafile(requested_file, current_user_name, shelf_id, media_id)
             return jsonify(resp)
         except Exception as ex:
             log.error_or_exception(ex)
             return jsonify({"error": str(ex)}), 500
-        
+
     if request.method == "GET" and "shelf_title" in request.args:
         shelf_title = request.args.get("shelf_title", None)
         current_user_name = request.args.get("current_user_name", None)
