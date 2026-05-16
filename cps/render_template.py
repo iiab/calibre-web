@@ -61,9 +61,10 @@ def get_sidebar_config(kwargs=None):
     else:
         content = 'conf' in kwargs
     sidebar = list()
-    sidebar.append({"glyph": "glyphicon-book", "text": labels["root"], "link": 'web.index', "id": "new",
+    # Keep the root library entry neutral so it is distinct from strict media-specific routes.
+    sidebar.append({"glyph": "glyphicon-book", "text": _('All Media'), "link": 'web.index', "id": "new",
                     "visibility": constants.SIDEBAR_RECENT, 'public': True, "page": "root",
-                    "show_text": _('Show recent books'), "config_show":False})
+                    "show_text": _('Show recent media'), "config_show":False})
     sidebar.append({"glyph": "glyphicon-fire", "text": labels["hot"], "link": 'web.books_list', "id": "hot",
                     "visibility": constants.SIDEBAR_HOT, 'public': True, "page": "hot",
                     "show_text": _('Show Hot Books'), "config_show": True})

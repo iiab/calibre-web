@@ -491,7 +491,6 @@ def render_books_list(data, sort_param, book_id, page):
         offset = int(int(config.config_books_per_page) * (page - 1))
         return render_adv_search_results(term, offset, order, config.config_books_per_page)
     else:
-        media_labels = get_active_media_labels()
         website = data or "newest"
         entries, random, pagination = calibre_db.fill_indexpage(page, 0, db.Books, True, order[0],
                                                                 True, config.config_read_column,
@@ -499,7 +498,7 @@ def render_books_list(data, sort_param, book_id, page):
                                                                 db.Books.id == db.books_series_link.c.book,
                                                                 db.Series)
         return render_title_template('index.html', random=random, entries=entries, pagination=pagination,
-                                     title=media_labels["plural"], page=website, order=order[1])
+                                     title=_("All Media"), page=website, order=order[1])
 
 
 def render_rated_books(page, book_id, order):
