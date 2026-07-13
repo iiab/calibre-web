@@ -160,6 +160,11 @@ del env_CALIBRE_PORT
 EXTENSIONS_AUDIO = {'mp3', 'ogg', 'opus', 'wav', 'flac', 'm4a', 'm4b'}
 EXTENSIONS_VIDEO = {'mp4', 'webm', 'mkv'}
 EXTENSIONS_IMAGE = {'jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'}    
+EXTENSIONS_BOOK = {
+    'txt', 'pdf', 'epub', 'kepub', 'mobi', 'azw', 'azw3',
+    'cbr', 'cbz', 'cbt', 'cb7', 'djvu', 'djv',
+    'prc', 'doc', 'docx', 'fb2', 'html', 'rtf', 'lit', 'odt'
+}
 EXTENSIONS_CONVERT_FROM = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2', 'lit', 'lrf',
                            'txt', 'htmlz', 'rtf', 'odt', 'cbz', 'cbr', 'prc']
 EXTENSIONS_CONVERT_TO = ['pdf', 'epub', 'mobi', 'azw3', 'docx', 'rtf', 'fb2',

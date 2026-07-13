@@ -115,7 +115,6 @@
                                     {% endfor %}
                                 </ul>
                                 <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
-
                                     {% for format in entry.data %}
                                         {% if format.format|lower in entry.audio_entries %}
                                             <li><a target="_blank"
@@ -128,7 +127,8 @@
                                 <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.audio_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-music"></span> {{ _('Listen in Browser') }} - {{ entry.audio_entries[0] }}</a>
                             {% endif %}
                         </div>
-                    {% elif entry.video_entries|length > 0 and current_user.role_viewer() %}
+                    {% endif %}
+                    {% if entry.video_entries|length > 0 and current_user.role_viewer() %}
                         <div class="btn-group" role="group">
                             {% if entry.video_entries|length > 1 %}
                                 <button id="listen-in-browser" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -142,7 +142,6 @@
                                     {% endfor %}
                                 </ul>
                                 <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
-
                                     {% for format in entry.data %}
                                         {% if format.format|lower in entry.video_entries %}
                                             <li><a target="_blank"
@@ -155,7 +154,8 @@
                                 <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.video_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-film"></span> {{ _('Watch in Browser') }} - {{ entry.video_entries[0] }}</a>
                             {% endif %}
                         </div>
-                        {% elif entry.image_entries|length > 0 and current_user.role_viewer() %}
+                    {% endif %}
+                    {% if entry.image_entries|length > 0 and current_user.role_viewer() %}
                         <div class="btn-group" role="group">
                             {% if entry.image_entries|length > 1 %}
                                 <button id="listen-in-browser" type="button" class="btn btn-primary dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
@@ -169,7 +169,6 @@
                                     {% endfor %}
                                 </ul>
                                 <ul class="dropdown-menu" aria-labelledby="listen-in-browser">
-
                                     {% for format in entry.data %}
                                         {% if format.format|lower in entry.image_entries %}
                                             <li><a target="_blank"
@@ -180,9 +179,9 @@
                                 </ul>
                             {% else %}
                                 <a target="_blank" href="{{ url_for('web.read_book', book_id=entry.id, book_format=entry.image_entries[0]) }}" id="listenbtn" class="btn btn-primary" role="button"><span class="glyphicon glyphicon-picture"></span> {{ _('View in Browser') }} - {{ entry.image_entries[0] }}</a>
-                            {% endif %}    
+                            {% endif %}
                         </div>
-                    {% endif %}        
+                    {% endif %}
                 </div>
             </div>
             <h2 id="title">{{ entry.title }}</h2>
@@ -310,10 +309,27 @@
                           method="POST">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <label class="block-label">
-                            <input id="have_read_cb" data-checked="{{ _('Mark As Unread') }}"
-                                   data-unchecked="{{ _('Mark As Read') }}" type="checkbox"
+                            {% set mc = media_context|default('book') %}
+                            {% set toggle_action = _('Read') %}
+                            {% set toggle_checked = _('Mark As Unread') %}
+                            {% set toggle_unchecked = _('Mark As Read') %}
+                            {% set toggle_tooltip = _('Mark Book as Read or Unread') %}
+
+                            {% if mc == 'video' or mc == 'image' %}
+                                {% set toggle_action = _('Viewed') %}
+                                {% set toggle_checked = _('Mark As Unviewed') %}
+                                {% set toggle_unchecked = _('Mark As Viewed') %}
+                                {% set toggle_tooltip = _('Mark content as Viewed or Unviewed') %}
+                            {% elif mc == 'audio' %}
+                                {% set toggle_action = _('Listened') %}
+                                {% set toggle_checked = _('Mark As Unlistened') %}
+                                {% set toggle_unchecked = _('Mark As Listened') %}
+                                {% set toggle_tooltip = _('Mark content as Listened or Unlistened') %}
+                            {% endif %}
+                            <input id="have_read_cb" data-checked="{{ toggle_checked }}"
+                                   data-unchecked="{{ toggle_unchecked }}" type="checkbox"
                                    {% if entry.read_status %}checked{% endif %}>
-                            <span data-toggle="tooltip" title="{{_('Mark Book as Read or Unread')}}">{{ _('Read') }}</span>
+                            <span data-toggle="tooltip" title="{{ toggle_tooltip }}">{{ toggle_action }}</span>
                         </label>
                     </form>
                     </p>
@@ -418,12 +434,20 @@
                     </div>
 
                     <div id="comment-section" style="margin-top: 20px;">
-                        <form id="comment-form">
-                            <div class="form-group">
-                                <textarea id="comment-text" class="form-control" rows="3" placeholder="{{ _('Add a comment...') }}"></textarea>
+                        <div id="comment-feedback" class="alert alert-info" role="alert" style="display:none;"></div>
+                        {% if current_user.is_authenticated %}
+                            <form id="comment-form">
+                                <div class="form-group">
+                                    <textarea id="comment-text" class="form-control" rows="3" placeholder="{{ _('Add a comment...') }}"></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">{{ _('Post Comment') }}</button>
+                            </form>
+                        {% else %}
+                            <div class="alert alert-info" role="alert">
+                                {{ _('Please log in to post a comment.') }}
+                                <a href="{{ url_for('web.login', next=request.url) }}">{{ _('Log in') }}</a>
                             </div>
-                            <button type="submit" class="btn btn-primary">{{ _('Post Comment') }}</button>
-                        </form>
+                        {% endif %}
 
                         <div id="comments-list" style="margin-top: 20px;">
                             {% for comment in entry.user_comments %}
@@ -457,7 +481,17 @@
 <script src="{{ url_for('static', filename='js/details.js') }}"></script>
 <script src="{{ url_for('static', filename='js/fullscreen.js') }}"></script>
 <script type="text/javascript">
-$('#rate-up, #rate-down').click(function() {
+function showCommentFeedback(message) {
+    var box = $('#comment-feedback');
+    if (!box.length) return;
+    if (message) {
+        box.text(message).show();
+    } else {
+        box.hide().text('');
+    }
+}
+
+$(document).on('click', '#rate-up, #rate-down', function() {
     var rating = $(this).data('rating');
     var isActive = $(this).hasClass('active');
     var sendRating = isActive ? 0 : rating;
@@ -471,30 +505,40 @@ $('#rate-up, #rate-down').click(function() {
 
 
 //This updates the UI instantly and keeps the user in context.
-$('#comment-form').submit(function(e) {
+$(document).on('submit', '#comment-form', function(e) {
     e.preventDefault();
-    var comment = $('#comment-text').val();
+    showCommentFeedback(null);
+    var comment = ($('#comment-text').val() || '').trim();
     if (!comment) return;
 
     $.post("{{ url_for('web.post_comment', book_id=entry.id) }}", {comment: comment, csrf_token: "{{ csrf_token() }}"})
         .done(function(data) {
+            if (!data || !data.user || !data.created_at || !data.comment) {
+                showCommentFeedback("{{ _('Please log in to post a comment.') }}");
+                return;
+            }
             // Format the date for display
             var date = new Date(data.created_at);
             var formatted = date.toLocaleString(undefined, {
                 year: 'numeric', month: '2-digit', day: '2-digit',
                 hour: '2-digit', minute: '2-digit'
             });
-            // Append new comment
-            $('#comments-list').prepend(
-                '<div class="comment" style="border-bottom: 1px solid #eee; padding: 10px 0;">' +
-                '<strong>' + data.user + '</strong> <small class="text-muted">' + formatted + '</small>' +
-                '<p>' + data.comment + '</p>' +
-                '</div>'
-            );
+
+            var wrapper = $('<div/>').addClass('comment').attr('style', 'border-bottom: 1px solid #eee; padding: 10px 0;');
+            wrapper.append($('<strong/>').text(data.user));
+            wrapper.append(' ');
+            wrapper.append($('<small/>').addClass('text-muted').text(formatted));
+            wrapper.append($('<p/>').text(data.comment));
+            $('#comments-list').prepend(wrapper);
             $('#comment-text').val(''); // Clear textarea
         })
         .fail(function(xhr) {
-            alert(xhr.responseJSON.error || "Error posting comment");
+            if (xhr && xhr.status === 401) {
+                showCommentFeedback("{{ _('Please log in to post a comment.') }}");
+                return;
+            }
+            var msg = (xhr && xhr.responseJSON && xhr.responseJSON.error) ? xhr.responseJSON.error : "{{ _('Error posting comment') }}";
+            showCommentFeedback(msg);
         });
 });
 </script>
