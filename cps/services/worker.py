@@ -25,7 +25,7 @@ try:
     import queue
 except ImportError:
     import Queue as queue
-from datetime import datetime
+from datetime import datetime, timezone
 from collections import namedtuple
 
 from cps import logger
@@ -92,7 +92,7 @@ class WorkerThread(threading.Thread):
         ins.queue.put(QueuedTask(
             num=ins.num,
             user=username,
-            added=datetime.now(),
+            added=datetime.now(timezone.utc),
             task=task,
             hidden=hidden
         ))
@@ -191,7 +191,7 @@ class CalibreTask:
         raise NotImplementedError
 
     def start(self, *args):
-        self.start_time = datetime.now()
+        self.start_time = datetime.now(timezone.utc)
         self.stat = STAT_STARTED
 
         # catch any unhandled exceptions in a task and automatically fail it
@@ -201,7 +201,7 @@ class CalibreTask:
             self._handleError(str(ex))
             log.exception(ex)
 
-        self.end_time = datetime.now()
+        self.end_time = datetime.now(timezone.utc)
 
     @property
     def stat(self):
@@ -231,7 +231,8 @@ class CalibreTask:
 
     @property
     def runtime(self):
-        return (self.end_time or datetime.now()) - self.start_time
+        now = datetime.now(timezone.utc)
+        return (self.end_time or now) - self.start_time
 
     @property
     def dead(self):
