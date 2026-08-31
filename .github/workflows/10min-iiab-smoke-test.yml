@@ -1,0 +1,52 @@
+name: '"10 min" IIAB install + Calibre-Web smoke test'
+
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test-install:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Clean clone to /opt/iiab/iiab (chmod permissions preserved)
+        run: |
+          sudo git clone https://github.com/iiab/iiab    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          sudo mkdir /opt/iiab
+          sudo mv iiab /opt/iiab
+          #sudo mkdir /opt/iiab         # Not needed by git clone below, but allows for setfacl removal of ACLs (drwxrwxrwx+) inherited from runner's /opt
+          #sudo setfacl -b /opt/iiab    # Turn off ACLs, reverting to chmod UNIX permissions -- i.e. another way to cleanly preserve chmod throut tree (unlike chmod -R 755 override of 777)
+          #sudo git clone https://github.com/iiab/iiab /opt/iiab/iiab
+      - name: Set up /etc/iiab/local_vars.yml -- equiv to local_vars_unittest.yml + Calibre-Web
+        run: |
+          echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
+          echo "calibreweb_enabled: True" >> local_vars.yml
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.repository.name }}" >> local_vars.yml
+            echo "calibreweb_version: $GITHUB_HEAD_REF" >> local_vars.yml
+          else    # Do the 2 vars below really also work on event "workflow_dispatch" ? (i.e not just on event "push" !)
+            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
+            echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
+          fi
+          cat >> local_vars.yml << EOF
+          nodocs: True
+          kolibri_install: False
+          kolibri_enabled: False
+          kiwix_install: False
+          kiwix_enabled: False
+          osm_vector_maps_install: False
+          awstats_install: False
+          awstats_enabled: False
+          matomo_install: False
+          matomo_enabled: False
+          captiveportal_install: False
+          network_install: False
+          network_enabled: False
+          admin_console_install: False
+          admin_console_enabled: False
+          EOF
+          sudo mkdir /etc/iiab
+          sudo mv local_vars.yml /etc/iiab
+          sudo chown root:root /etc/iiab/local_vars.yml    # Override runner:docker (optional!)
+          ls -l /etc/iiab/local_vars.yml
+          cat /etc/iiab/local_vars.yml
+      - run: sudo /opt/iiab/iiab/scripts/ansible    # Install Ansible
+      - run: sudo ./iiab-install                    # Install IIAB Calibre-Web!
+        working-directory: /opt/iiab/iiab
