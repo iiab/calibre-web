@@ -18,7 +18,7 @@ jobs:
           echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
           echo "calibreweb_enabled: True" >> local_vars.yml
           echo "calibreweb_repo_url: file://$GITHUB_WORKSPACE" >> local_vars.yml
-          echo "calibreweb_version: HEAD" >> local_vars.yml
+          echo "calibreweb_version: $GITHUB_SHA" >> local_vars.yml
           cat >> local_vars.yml << EOF
           nodocs: True
           kolibri_install: False
