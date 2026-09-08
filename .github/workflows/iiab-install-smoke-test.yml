@@ -6,6 +6,8 @@ jobs:
   test-install:
     runs-on: ubuntu-24.04
     steps:
+      - name: Check out merged Calibre-Web revision
+        uses: actions/checkout@v6
       - name: Clean clone to /opt/iiab/iiab (chmod permissions preserved)
         run: |
           sudo git clone https://github.com/iiab/iiab    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
@@ -15,13 +17,8 @@ jobs:
         run: |
           echo "calibreweb_install: True" > local_vars.yml    # in $GITHUB_WORKSPACE == /home/runner/work/calibre-web/calibre-web
           echo "calibreweb_enabled: True" >> local_vars.yml
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/${{ github.event.pull_request.head.repo.owner.login }}/${{ github.event.repository.name }}" >> local_vars.yml
-            echo "calibreweb_version: $GITHUB_HEAD_REF" >> local_vars.yml
-          else # works for both push and workflow_dispatch
-            echo "calibreweb_repo_url: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY" >> local_vars.yml
-            echo "calibreweb_version: $GITHUB_REF_NAME" >> local_vars.yml
-          fi
+          echo "calibreweb_repo_url: file://$GITHUB_WORKSPACE" >> local_vars.yml
+          echo "calibreweb_version: HEAD" >> local_vars.yml
           cat >> local_vars.yml << EOF
           nodocs: True
           kolibri_install: False
