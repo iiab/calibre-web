@@ -24,6 +24,14 @@ from .string_helper import strip_whitespaces
 log = logger.create()
 
 
+# Official ISO 639-3 languages not yet present in the generated display-name table.
+# These English names are intentionally used as a fallback for every interface locale.
+_ADDITIONAL_LANGUAGE_NAMES = {
+    "cie": "Cinene",
+    "dgh": "Dghwede",
+}
+
+
 try:
     from pycountry import languages as pyc_languages
 
@@ -50,6 +58,8 @@ def get_language_names(locale):
     names = _LANGUAGE_NAMES.get(str(locale))
     if names is None:
         names = _LANGUAGE_NAMES.get(locale.language)
+    if names is not None:
+        return {**names, **_ADDITIONAL_LANGUAGE_NAMES}
     return names
 
 
