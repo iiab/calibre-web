@@ -2,7 +2,7 @@ import os
 import re
 import requests
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timezone
 from flask_babel import lazy_gettext as N_, gettext as _
 
 from cps.constants import XKLB_DB_FILE, MAX_VIDEOS_PER_DOWNLOAD
@@ -23,7 +23,7 @@ class TaskMetadataExtract(CalibreTask):
         self.original_url = self._format_original_url(original_url)
         self.is_playlist = None
         self.current_user_name = current_user_name
-        self.start_time = self.end_time = datetime.now()
+        self.start_time = self.end_time = datetime.now(timezone.utc)
         self.stat = STAT_WAITING
         self.progress = 0
         self.columns = None
@@ -112,7 +112,7 @@ class TaskMetadataExtract(CalibreTask):
         requested_urls = {url: requested_urls[url] for url in requested_urls.keys() if "shorts" not in url and url not in failed_urls}
 
     def _calculate_views_per_day(self, requested_urls, conn):
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         for requested_url in requested_urls.keys():
             try:
                 view_count = conn.execute("SELECT view_count FROM media WHERE path = ?", (requested_url,)).fetchone()[0]
@@ -153,7 +153,7 @@ class TaskMetadataExtract(CalibreTask):
     def run(self, worker_thread):
         self.worker_thread = worker_thread
         log.info("Starting to fetch metadata for URL: %s", self.media_url)
-        self.start_time = self.end_time = datetime.now()
+        self.end_time = datetime.now(timezone.utc)
         self.stat = STAT_STARTED
         self.progress = 0
 
