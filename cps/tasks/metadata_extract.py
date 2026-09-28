@@ -171,13 +171,17 @@ class TaskMetadataExtract(CalibreTask):
             if not requested_urls:
                 if self.unavailable:
                     self.message = f"{self.media_url_link} failed: Video not available."
-                elif error_message := conn.execute("SELECT error FROM media WHERE ? LIKE '%' || extractor_id || '%'", (self.media_url,)).fetchone()[0]:
-                    self.message = f"{self.media_url_link} failed previously with this error: {error_message}<br><br>To force a retry, submit the URL again."
-                    media_id = conn.execute("SELECT id FROM media WHERE webpath = ?", (self.media_url,)).fetchone()[0]
-                    conn.execute("DELETE FROM media WHERE webpath = ?", (self.media_url,))
-                    conn.execute("DELETE FROM captions WHERE media_id = ?", (media_id,))
                 else:
-                    self.message = f"{self.media_url_link} failed: An error occurred while trying to fetch the requested URLs."
+                    error_row = conn.execute(
+                        "SELECT id, error FROM media WHERE ? LIKE '%' || extractor_id || '%'", (self.media_url,)
+                    ).fetchone()
+                    if error_row and error_row[1]:
+                        error_message = error_row[1]
+                        self.message = f"{self.media_url_link} failed previously with this error: {error_message}<br><br>To force a retry, submit the URL again."
+                        conn.execute("DELETE FROM media WHERE id = ?", (error_row[0],))
+                        conn.execute("DELETE FROM captions WHERE media_id = ?", (error_row[0],))
+                    else:
+                        self.message = f"{self.media_url_link} failed: An error occurred while trying to fetch the requested URLs."
                 self.stat = STAT_FAIL
 
             elif self.is_playlist:
@@ -188,11 +192,17 @@ class TaskMetadataExtract(CalibreTask):
                 conn.execute("UPDATE playlists SET path = ? WHERE path = ?", (f"{self.media_url}&timestamp={int(datetime.now().timestamp())}", self.media_url))
             else:
                 try:
-                    extractor_id = conn.execute("SELECT extractor_id FROM media WHERE ? LIKE '%' || extractor_id || '%'", (self.media_url,)).fetchone()[0]
+                    extractor_row = conn.execute(
+                        "SELECT extractor_id FROM media WHERE ? LIKE '%' || extractor_id || '%'", (self.media_url,)
+                    ).fetchone()
+                    if not extractor_row or not extractor_row[0]:
+                        raise ValueError("No extractor ID found for the fetched media")
+                    extractor_id = extractor_row[0]
                     requested_urls = {url: requested_urls[url] for url in requested_urls.keys() if extractor_id in url}
                 except Exception as e:
                     log.error("An error occurred during the selection of the extractor ID: %s", e)
                     self.message = f"{self.media_url_link} failed: {e}"
+                    self.stat = STAT_FAIL
                     return
 
             self._add_download_tasks_to_worker(requested_urls)
