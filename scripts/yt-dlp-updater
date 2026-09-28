@@ -25,7 +25,8 @@ fi
 if [ "$NEEDS_UPDATE" -eq 1 ]; then
     echo "Updating yt-dlp nightly..."
     # https://github.com/iiab/iiab/blob/690505daf540b2013a69a9368dd76e3d421d6cb6/roles/calibre-web/tasks/install.yml#L103
-    pipx inject --pip-args="--upgrade --pre" -f yt-dlp[default]
+    pipx inject --pip-args="--upgrade --pre" -f library \
+        'yt-dlp[default,curl-cffi]' yt-dlp-ejs
 
     if [ $? -eq 0 ]; then
         touch "$TIMESTAMP_FILE"
