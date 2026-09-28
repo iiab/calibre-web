@@ -63,10 +63,10 @@ class TaskMetadataExtract(CalibreTask):
         try:
             cursor = conn.execute("PRAGMA table_info(media)")
             self.columns = [column[1] for column in cursor.fetchall()]
-            if "live_status" not in self.columns:
-                conn.execute("ALTER TABLE media ADD COLUMN live_status TEXT")
-            if "error" not in self.columns:
-                conn.execute("ALTER TABLE media ADD COLUMN error TEXT")
+            for column in ("live_status", "error", "extractor_id"):
+                if column not in self.columns:
+                    conn.execute(f"ALTER TABLE media ADD COLUMN {column} TEXT")
+                    self.columns.append(column)
             query = "SELECT path, duration, live_status FROM media WHERE path LIKE 'http%' AND (error IS NULL OR error = '')"
             rows = conn.execute(query).fetchall()
             requested_urls = {}
