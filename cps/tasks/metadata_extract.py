@@ -30,6 +30,7 @@ class TaskMetadataExtract(CalibreTask):
         self.shelf_title = None
         self.shelf_id = None
         self.unavailable = []
+        self.extractor_error = None
 
     def _format_media_url(self, media_url):
         return media_url.split("&")[0] if "&" in media_url else media_url
@@ -48,6 +49,16 @@ class TaskMetadataExtract(CalibreTask):
                     self.shelf_title = line.split("Downloading playlist: ")[1].strip()
                     break
             p.wait()
+            output = []
+            if p.stdout:
+                output.extend(p.stdout.readlines())
+            if p.stderr:
+                output.extend(p.stderr.readlines())
+            for line in output:
+                match = re.search(r"ERROR:\s+(?:\[[^]]+\]\s+)?(?:[^:]+:\s+)?(?P<message>.+)$", line)
+                if match:
+                    self.extractor_error = match.group("message").strip()
+                    break
             self.message = self.media_url_link + "..."
             return p
         except Exception as e:
@@ -180,6 +191,8 @@ class TaskMetadataExtract(CalibreTask):
                         self.message = f"{self.media_url_link} failed previously with this error: {error_message}<br><br>To force a retry, submit the URL again."
                         conn.execute("DELETE FROM media WHERE id = ?", (error_row[0],))
                         conn.execute("DELETE FROM captions WHERE media_id = ?", (error_row[0],))
+                    elif self.extractor_error:
+                        self.message = f"{self.media_url_link} failed: {self.extractor_error}"
                     else:
                         self.message = f"{self.media_url_link} failed: An error occurred while trying to fetch the requested URLs."
                 self.stat = STAT_FAIL
