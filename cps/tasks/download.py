@@ -29,6 +29,10 @@ class TaskDownload(CalibreTask):
         self.stat = STAT_WAITING
         self.progress = 0
 
+    def _set_failure(self, message):
+        self.error = message
+        self.message = None
+
     def run(self, worker_thread):
         """Run the download task"""
         self.worker_thread = worker_thread
@@ -89,25 +93,37 @@ class TaskDownload(CalibreTask):
                 # Database operations
                 with sqlite3.connect(XKLB_DB_FILE) as conn:
                     try:
-                        requested_file = conn.execute("SELECT path FROM media WHERE webpath = ? AND path NOT LIKE 'http%'", (self.media_url,)).fetchone()[0]
+                        requested_file_row = conn.execute(
+                            "SELECT path FROM media WHERE webpath = ? AND path NOT LIKE 'http%'",
+                            (self.media_url,),
+                        ).fetchone()
+                        requested_file = requested_file_row[0] if requested_file_row else None
 
                         # Abort if there is not a path
-                        if not requested_file:
+                        if not requested_file or not os.path.isfile(requested_file):
                             log.info("No path found in the database")
-                            error = conn.execute("SELECT error, webpath FROM media WHERE error IS NOT NULL").fetchone()
-                            if error:
+                            error = conn.execute(
+                                "SELECT error, webpath FROM media WHERE webpath = ?",
+                                (self.media_url,),
+                            ).fetchone()
+                            if error and error[0]:
                                 log.error("[xklb] An error occurred while trying to download %s: %s", error[1], error[0])
-                                self.message = f"{error[1]} failed to download: {error[0]}"
+                                self._set_failure(f"{error[1]} failed to download: {error[0]}")
                             else:
                                 log.error("%s failed to download: No path or error found in the database (likely the video failed due to unavailable fragments?)", self.media_url)
-                                self.message = f"{self.media_url_link} failed to download: No path or error found in the database (likely the video failed due to unavailable fragments?)"
-                                media_id = conn.execute("SELECT id FROM media WHERE webpath = ?", (self.media_url,)).fetchone()[0]
-                                conn.execute("DELETE FROM media WHERE webpath = ?", (self.media_url,))
-                                conn.execute("DELETE FROM captions WHERE media_id = ?", (media_id,))
+                                self._set_failure(f"{self.media_url_link} failed to download: No downloaded file was recorded in the database.")
+                            media_row = conn.execute(
+                                "SELECT id FROM media WHERE webpath = ?",
+                                (self.media_url,),
+                            ).fetchone()
+                            if media_row:
+                                conn.execute("DELETE FROM media WHERE id = ?", (media_row[0],))
+                                conn.execute("DELETE FROM captions WHERE media_id = ?", (media_row[0],))
                             return
                     except sqlite3.Error as db_error:
                         log.error("An error occurred while trying to connect to the database: %s", db_error)
-                        self.message = f"{self.media_url_link} failed to download: {db_error}"
+                        self._set_failure(f"{self.media_url_link} failed to download: {db_error}")
+                        return
 
                     self.message = self.message + "\n" + f"Almost done..."
                     response = requests.get(self.original_url, params={"requested_file": requested_file, "current_user_name": self.current_user_name, "shelf_id": self.shelf_id})
@@ -117,23 +133,30 @@ class TaskDownload(CalibreTask):
                         self.message = f"Successfully downloaded {self.media_url_link} to <br><br>{file_downloaded}"
                         new_video_path = response.json()["new_book_path"]
                         new_video_path = next((os.path.join(new_video_path, file) for file in os.listdir(new_video_path) if file.endswith((".webm", ".mp4"))), None)
+                        if not new_video_path:
+                            self._set_failure(f"{self.media_url_link} failed to download: Calibre-Web did not receive a video file.")
+                            return
                         # 2024-02-17: Dedup Design Evolving... https://github.com/iiab/calibre-web/pull/125
                         conn.execute("UPDATE media SET path = ? WHERE webpath = ?", (new_video_path, self.media_url))
                         conn.execute("UPDATE media SET webpath = ? WHERE path = ?", (f"{self.media_url}&timestamp={int(datetime.now().timestamp())}", new_video_path))
                         self.progress = 1.0
                     else:
                         log.error("Failed to send the requested file to %s", self.original_url)
-                        self.message = f"{self.media_url_link} failed to download: {response.status_code} {response.reason}"
+                        self._set_failure(f"{self.media_url_link} failed to download: {response.status_code} {response.reason}")
 
                 conn.close()
 
             except Exception as e:
                 log.error("An error occurred during the subprocess execution: %s", e)
-                self.message = f"{self.media_url_link} failed to download: {self.read_error_from_database()}"
+                try:
+                    error = self.read_error_from_database()
+                except sqlite3.Error as db_error:
+                    error = db_error
+                self._set_failure(f"{self.media_url_link} failed to download: {error or e}")
 
             finally:
                 self.end_time = datetime.now()
-                if p.returncode == 0 or self.progress == 1.0:
+                if self.progress == 1.0:
                     self.stat = STAT_FINISH_SUCCESS
                     log.info("Download task for %s completed successfully", self.media_url)
                 else:
@@ -145,9 +168,12 @@ class TaskDownload(CalibreTask):
     def read_error_from_database(self):
         """Read the error from the database"""
         with sqlite3.connect(XKLB_DB_FILE) as conn:
-            error = conn.execute("SELECT error FROM media WHERE webpath = ?", (self.media_url,)).fetchone()[0]
+            error_row = conn.execute(
+                "SELECT error FROM media WHERE webpath = ?",
+                (self.media_url,),
+            ).fetchone()
         conn.close()
-        return error
+        return error_row[0] if error_row else None
 
     @property
     def name(self):
