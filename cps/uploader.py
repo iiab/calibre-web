@@ -312,8 +312,7 @@ def video_metadata(tmp_file_path, original_file_name, original_file_extension):
                                 break
                     if cover_file_path is None:
                         log.warning('Cannot find thumbnail file, using a frame from the video')
-                        cover_file_path = os.path.splitext(tmp_file_path)[0] + '.cover.jpg'
-                        generate_video_cover(tmp_file_path)
+                        cover_file_path = generate_video_cover(tmp_file_path)
                     c.execute("SELECT * FROM captions WHERE media_id=?", (row['id'],))
                     row = c.fetchone()
                     description = f"{row['text']}<br><br>Original Internet URL: <a href='{video_url}' target='_blank'>{video_url}</a>" if row is not None else ''
@@ -364,6 +363,10 @@ def generate_video_cover(tmp_file_path):
     try:
         ffmpeg_result = subprocess.run(ffmpeg_args, capture_output=True, check=True)
         log.debug(f"ffmpeg output: {ffmpeg_result.stdout}")
+        if not os.path.isfile(ffmpeg_output_file):
+            log.error('ffmpeg completed without creating a cover file: %s', ffmpeg_output_file)
+            return None
+        return ffmpeg_output_file
 
     except Exception as e:
         log.error(f"ffmpeg failed: {e}")

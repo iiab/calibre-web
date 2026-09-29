@@ -63,6 +63,10 @@ class TaskMetadataExtract(CalibreTask):
                 if match:
                     self.extractor_error = match.group("message").strip()
                     break
+            if p.returncode != 0:
+                error = self.extractor_error or f"process exited with status {p.returncode}"
+                self._set_failure(f"{self.media_url_link} failed: {error}")
+                return None
             self.message = self.media_url_link + "..."
             return p
         except Exception as e:
@@ -118,13 +122,13 @@ class TaskMetadataExtract(CalibreTask):
                     self.progress = (index + 1) / len(subprocess_args_list)
                 else:
                     failed_urls.append(subprocess_args[2])
-                p.wait()
             except Exception as e:
                 log.error("An error occurred during updating the metadata of %s: %s", subprocess_args[2], e)
                 self._set_failure(f"{subprocess_args[2]} failed: {e}")
                 failed_urls.append(subprocess_args[2])
 
-        requested_urls = {url: requested_urls[url] for url in requested_urls.keys() if "shorts" not in url and url not in failed_urls}
+        return {url: requested_urls[url] for url in requested_urls.keys()
+                if "shorts" not in url and url not in failed_urls}
 
     def _calculate_views_per_day(self, requested_urls, conn):
         now = datetime.now()
@@ -203,7 +207,12 @@ class TaskMetadataExtract(CalibreTask):
 
             elif self.is_playlist:
                 self._send_shelf_title()
-                self._update_metadata(requested_urls)
+                requested_urls = self._update_metadata(requested_urls)
+                if not requested_urls:
+                    if not self.error:
+                        self._set_failure(f"{self.media_url_link} failed: No requested URLs could be processed.")
+                    self.stat = STAT_FAIL
+                    return
                 self._calculate_views_per_day(requested_urls, conn)
                 requested_urls = self._sort_and_limit_requested_urls(requested_urls)
                 conn.execute("UPDATE playlists SET path = ? WHERE path = ?", (f"{self.media_url}&timestamp={int(datetime.now().timestamp())}", self.media_url))
@@ -226,7 +235,7 @@ class TaskMetadataExtract(CalibreTask):
         conn.close()
 
         self.progress = 1.0
-        self.stat = STAT_FINISH_SUCCESS
+        self.stat = STAT_FAIL if self.error else STAT_FINISH_SUCCESS
 
     @property
     def name(self):
