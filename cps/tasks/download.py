@@ -6,13 +6,21 @@ import sqlite3
 from datetime import datetime
 from flask_babel import lazy_gettext as N_, gettext as _
 
-from cps.constants import XKLB_DB_FILE
+from cps.constants import XKLB_DB_FILE, EXTENSIONS_VIDEO
 from cps.services.worker import CalibreTask, STAT_FINISH_SUCCESS, STAT_FAIL, STAT_STARTED, STAT_WAITING
 from cps.subproc_wrapper import process_open
 from .. import logger
 from time import sleep
 
 log = logger.create()
+
+VIDEO_EXTENSIONS = tuple("." + ext for ext in EXTENSIONS_VIDEO)
+
+
+def find_downloaded_video(book_path):
+    return next((os.path.join(book_path, name) for name in os.listdir(book_path)
+                 if name.lower().endswith(VIDEO_EXTENSIONS)), None)
+
 
 class TaskDownload(CalibreTask):
     def __init__(self, task_message, media_url, original_url, current_user_name, shelf_id, duration, live_status):
@@ -132,7 +140,7 @@ class TaskDownload(CalibreTask):
                         file_downloaded = response.json()["file_downloaded"]
                         self.message = f"Successfully downloaded {self.media_url_link} to <br><br>{file_downloaded}"
                         new_video_path = response.json()["new_book_path"]
-                        new_video_path = next((os.path.join(new_video_path, file) for file in os.listdir(new_video_path) if file.endswith((".webm", ".mp4"))), None)
+                        new_video_path = find_downloaded_video(new_video_path)
                         if not new_video_path:
                             self._set_failure(f"{self.media_url_link} failed to download: Calibre-Web did not receive a video file.")
                             return
