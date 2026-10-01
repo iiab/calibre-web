@@ -415,7 +415,7 @@ class Books(Base):
     last_modified = Column(TIMESTAMP, default=lambda: datetime.now(timezone.utc))
     path = Column(String, default="", nullable=False)
     has_cover = Column(Integer, default=0)
-    uuid = Column(String)
+    uuid = Column(String, default=lambda: str(uuid4()))
     # isbn = Column(String(collation='NOCASE'), default="")
     # flags = Column(Integer, nullable=False, default=1)
 

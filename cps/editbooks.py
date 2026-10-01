@@ -24,6 +24,7 @@ import os
 from datetime import datetime, timezone
 import json
 from shutil import copyfile, move
+from uuid import uuid4
 
 from markupsafe import escape, Markup  # dependency of flask
 from functools import wraps
@@ -33,7 +34,7 @@ from flask_babel import gettext as _
 from flask_babel import lazy_gettext as N_
 from flask_babel import get_locale
 from .cw_login import current_user
-from sqlalchemy.exc import OperationalError, IntegrityError, InterfaceError
+from sqlalchemy.exc import OperationalError, IntegrityError, InterfaceError, InvalidRequestError
 from sqlalchemy.orm.exc import StaleDataError
 from sqlalchemy.sql.expression import func
 

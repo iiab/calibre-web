@@ -5,9 +5,9 @@ SCRIPT_DIR=$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")
 XKLB_INTERNAL_CMD="$1"    # e.g. "tubeadd" or "dl" or "search"
 URL_OR_SEARCH_TERM="$2"
 
-LOG_FILE="/var/log/xklb.log"
-XKLB_DB_FILE="/library/calibre-web/xklb-metadata.db"
-TMP_DOWNLOADS_DIR="/library/downloads/calibre-web"
+LOG_FILE="${XKLB_LOG_FILE:-/var/log/xklb.log}"
+XKLB_DB_FILE="${XKLB_DB_FILE:-/library/calibre-web/xklb-metadata.db}"
+TMP_DOWNLOADS_DIR="${TMP_DOWNLOADS_DIR:-/library/downloads/calibre-web}"
 
 # OUTTMPL refers to yt-dlp's "OUTPUT TEMPLATE". This is a filepath with regex
 # that can interpret attributes about the video. It enables things like a file
@@ -36,7 +36,13 @@ FORMAT_OPTIONS="--format=best --format-sort='tbr~1000'"
 # UPDATE: Notice the lack of a space between the '-o' flag and '${OUTTMPL}'.
 # See https://github.com/iiab/calibre-web/issues/321 for the problem that this
 # (hopefully) solves.
-YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o'${OUTTMPL}' ${FORMAT_OPTIONS}"
+YT_DLP_EXTRA_OPTIONS="${YT_DLP_EXTRA_OPTIONS:-}"
+YT_DLP_OPTIONS="--write-thumbnail --live --live-from-start -o'${OUTTMPL}' ${FORMAT_OPTIONS} ${YT_DLP_EXTRA_OPTIONS}"
+XKLB_EXTRACTOR_CONFIG="${XKLB_EXTRACTOR_CONFIG:-}"
+TUBEADD_OPTIONS=""
+if [[ -n "${XKLB_EXTRACTOR_CONFIG}" ]]; then
+    TUBEADD_OPTIONS="--extractor-config '${XKLB_EXTRACTOR_CONFIG}'"
+fi
 
 
 VERBOSITY="-vv"
@@ -101,7 +107,7 @@ log "Info" "Using yt-dlp $(yt-dlp --version)"
 # fetching metadata. This will prevent hanging for playlist URLs or short URLs.
 # "...to be able to list videos that are not downloaded yet"
 if [[ $XKLB_INTERNAL_CMD == "tubeadd" ]]; then
-    xklb_full_cmd="lb tubeadd '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${VERBOSITY}"
+    xklb_full_cmd="lb tubeadd '${XKLB_DB_FILE}' '${URL_OR_SEARCH_TERM}' --force ${TUBEADD_OPTIONS} ${VERBOSITY}"
 elif [[ $XKLB_INTERNAL_CMD == "dl" ]]; then
     xklb_full_cmd="lb dl '${XKLB_DB_FILE}' --video --search '${URL_OR_SEARCH_TERM}' --subs ${YT_DLP_OPTIONS} ${VERBOSITY}"
 elif [[ $XKLB_INTERNAL_CMD == "search" ]]; then
