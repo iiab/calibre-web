@@ -55,6 +55,7 @@ def test_get_cc_columns_returns_empty_list_when_custom_columns_table_is_missing(
     config = SimpleNamespace(config_columns_to_ignore=None, config_read_column=None)
 
     with Flask(__name__).app_context():
+        assert calibre_db.get_all_cc_columns() == []
         assert calibre_db.get_cc_columns(config) == []
         assert calibre_db.get_browseable_cc_columns(config) == []
 
@@ -162,6 +163,63 @@ def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monke
         add_restriction(1, 0)
     assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
     assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_allow': '', 'add_element': '   '}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_allow': '', 'add_element': 'has,comma'}):
+        response = add_restriction(1, 0)
+    assert response[1] == 400
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_deny': '', 'add_element': 'new_allowed'}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied,new_allowed'
+
+
+def test_calibredb_error_message_strips_traceback(monkeypatch):
+    from cps import cli_param
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
+    from cps.admin import _calibredb_error_message
+
+    traceback = "Traceback (most recent call last):\n  File \"x.py\", line 1\napsw.SQLError: boom"
+    assert _calibredb_error_message(traceback, "", "fallback") == "apsw.SQLError: boom"
+    assert _calibredb_error_message("", "plain error", "fallback") == "plain error"
+    assert _calibredb_error_message("", "", "fallback") == "fallback"
+
+
+def test_toggle_cc_registers_calibre_functions_before_commit(monkeypatch):
+    from cps import cli_param
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
+    from cps import editbooks, kobo_sync_status
+    from cps import calibre_db as cps_calibre_db
+
+    book = SimpleNamespace(id=2, last_modified=None, custom_column_6=[])
+    fake_session = SimpleNamespace(commit=Mock(), rollback=Mock())
+    monkeypatch.setattr(CalibreDB, 'session', property(lambda self: fake_session))
+    monkeypatch.setattr(cps_db, 'cc_classes', {6: object()})
+    monkeypatch.setattr(cps_calibre_db, 'get_filtered_book', Mock(return_value=book))
+    monkeypatch.setattr(cps_calibre_db, 'get_all_cc_columns', Mock(return_value=[_column(6, 'bool')]))
+    monkeypatch.setattr(cps_calibre_db, 'create_functions', Mock())
+    monkeypatch.setattr(cps_calibre_db, 'set_metadata_dirty', Mock())
+    monkeypatch.setattr(editbooks, 'edit_single_cc_data', Mock())
+    monkeypatch.setattr(kobo_sync_status, 'remove_synced_book', Mock())
+
+    with Flask(__name__).app_context():
+        assert _unwrap(editbooks.toggle_cc)(2, 6) == ""
+
+    cps_calibre_db.create_functions.assert_called_once()
+    fake_session.commit.assert_called_once()
 
 
 def test_is_browseable_cc_column(monkeypatch):
