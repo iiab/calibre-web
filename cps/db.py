@@ -518,8 +518,13 @@ class AlchemyEncoder(json.JSONEncoder):
             for field in [x for x in dir(o) if not x.startswith('_') and x != 'metadata' and x != "password"]:
                 if field == 'books':
                     continue
-                data = o.__getattribute__(field)
+                custom_column = re.match(r'^custom_column_(\d+)$', field)
+                if custom_column and int(custom_column.group(1)) not in cc_classes:
+                    # The column was deleted from metadata.db. Its relationship is still
+                    # mapped on Books, so reading it would query a table that is gone.
+                    continue
                 try:
+                    data = o.__getattribute__(field)
                     if isinstance(data, str):
                         data = data.replace("'", "\'")
                     elif isinstance(data, InstrumentedList):
