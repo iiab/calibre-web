@@ -1146,6 +1146,8 @@ def custom_property_list(column_id):
     if not column or not current_user.check_visibility(constants.SIDEBAR_CATEGORY):
         abort(404)
     page_key = custom_column_page(column_id)
+    # Register the unicode-aware lower() used to sort text/enumeration values.
+    calibre_db.create_functions()
     value_column = db.cc_classes[column_id].value
     if column.datatype in ('text', 'enumeration'):
         value_column = func.lower(value_column)
