@@ -119,6 +119,8 @@ def test_parse_custom_column_value():
 
 
 def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monkeypatch):
+    from cps import cli_param
+    cli_param.gd_path = ':memory:'
     from cps import admin
 
     config = SimpleNamespace(
