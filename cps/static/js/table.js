@@ -803,6 +803,11 @@ $(function() {
                             $("#restrict-elements-table").bootstrapTable("load", data);
                         }
                     });
+                },
+                error: function (xhr) {
+                    if (xhr.responseText) {
+                        alert(xhr.responseText);
+                    }
                 }
             });
             return;

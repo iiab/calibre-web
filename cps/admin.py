@@ -41,7 +41,6 @@ from markupsafe import Markup
 from .cw_login import current_user
 from flask_babel import gettext as _
 from flask_babel import get_locale, format_time, format_datetime, format_timedelta
-from sqlalchemy import and_
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.exc import IntegrityError, OperationalError, InvalidRequestError, ArgumentError
 from sqlalchemy.sql.expression import func, or_, text
@@ -154,18 +153,25 @@ def _run_calibredb(command, quotes, env, timeout=120):
         process.kill()
         process.communicate()
         return -1, "", _("calibredb did not finish within %(seconds)s seconds.", seconds=timeout)
+    if process.returncode != 0:
+        log.error("calibredb failed: %s", (error or output).strip())
     return process.returncode, output, error
+
+
+def _calibredb_error_message(error, output, default):
+    """Return the useful part of a calibredb failure without its Python traceback."""
+    message = (error or output or default).strip()
+    lines = [line.strip() for line in message.splitlines() if line.strip()]
+    if any(line.startswith("Traceback (most recent call last)") for line in lines):
+        message = lines[-1]
+    return message
 
 
 def _custom_property_rows():
     sidebar_settings = config.config_custom_sidebar_columns or {}
     visible_ids = {column.id for column in
                    calibre_db.get_cc_columns(config, filter_config_custom_read=True)}
-    try:
-        columns = calibre_db.session.query(db.CustomColumns).order_by(db.CustomColumns.id).all()
-    except (OperationalError, InvalidRequestError) as ex:
-        log.warning("Unable to load custom columns: %s", ex)
-        columns = []
+    columns = sorted(calibre_db.get_all_cc_columns(include_exceptions=True), key=lambda column: column.id)
     rows = []
     for column in columns:
         browseable = column.id in visible_ids and db.is_browseable_cc_column(column)
@@ -220,6 +226,14 @@ def _create_custom_property():
     if form_data["datatype"] != 'text':
         form_data["is_multiple"] = False
 
+    existing_columns = calibre_db.get_all_cc_columns(include_exceptions=True)
+    if any(column.label == form_data["label"] for column in existing_columns):
+        flash(_("A custom property with this label already exists."), category="error")
+        return _render_custom_properties(form_data)
+    if any((column.name or '').casefold() == form_data["name"].casefold() for column in existing_columns):
+        flash(_("A custom property with this display name already exists."), category="error")
+        return _render_custom_properties(form_data)
+
     display = {}
     if form_data["datatype"] == 'enumeration':
         enum_values = [strip_whitespaces(value) for value in form_data["enum_values"].split(',')]
@@ -247,10 +261,10 @@ def _create_custom_property():
         command.append('--is-multiple')
     command.extend([form_data["label"], form_data["name"], form_data["datatype"]])
 
-    quotes = [0, 3, 5, len(command) - 2]
+    quotes = [0, 3, 5, len(command) - 3, len(command) - 2]
     returncode, output, error = _run_calibredb(command, quotes, my_env)
     if returncode != 0:
-        flash((error or output or _("Failed to create the custom property.")).strip(), category="error")
+        flash(_calibredb_error_message(error, output, _("Failed to create the custom property.")), category="error")
         return _render_custom_properties(form_data)
 
     calibre_db.reconnect_db(config, ub.app_DB_path)
@@ -416,7 +430,8 @@ def custom_property_delete(label):
         flash(_("Invalid custom property label."), category="error")
         return redirect(url_for('admin.custom_properties'))
 
-    column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.label == label).first()
+    column = next((column for column in calibre_db.get_all_cc_columns(include_exceptions=True)
+                   if column.label == label), None)
     if not column:
         flash(_("Custom property not found."), category="error")
         return redirect(url_for('admin.custom_properties'))
@@ -445,7 +460,7 @@ def custom_property_delete(label):
 
     returncode, output, error = _run_calibredb(command, [0, 4], my_env)
     if returncode != 0:
-        flash((error or output or _("Failed to delete the custom property.")).strip(), category="error")
+        flash(_calibredb_error_message(error, output, _("Failed to delete the custom property.")), category="error")
         return redirect(url_for('admin.custom_properties'))
 
     calibre_db.remove_db_cc_class(column_id)
@@ -464,19 +479,24 @@ def custom_property_delete(label):
 @user_login_required
 @admin_required
 def custom_property_edit(label):
-    new_name = request.form.get("name", "").strip()
+    new_name = strip_whitespaces(request.form.get("name", ""))
     if not new_name:
         flash(_("Please provide a display name."), category="error")
         return redirect(url_for('admin.custom_properties'))
-        
-    column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.label == label).first()
+
+    columns = calibre_db.get_all_cc_columns(include_exceptions=True)
+    column = next((column for column in columns if column.label == label), None)
     if not column:
         flash(_("Custom property not found."), category="error")
         return redirect(url_for('admin.custom_properties'))
-        
+    if any(other.id != column.id and (other.name or '').casefold() == new_name.casefold()
+           for other in columns):
+        flash(_("A custom property with this display name already exists."), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
     column.name = new_name
     calibre_db.session.commit()
-    
+
     flash(_("Custom property %(name)s updated successfully.", name=new_name), category="success")
     return redirect(url_for('admin.custom_properties'))
 
@@ -484,7 +504,8 @@ def custom_property_edit(label):
 @user_login_required
 @admin_required
 def custom_property_toggle_sidebar(column_id):
-    column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column_id).first()
+    column = next((column for column in calibre_db.get_all_cc_columns(include_exceptions=True)
+                   if column.id == column_id), None)
     if not column:
         return "", 404
     visible_ids = {col.id for col in
@@ -538,10 +559,11 @@ def calibreweb_alive():
 @user_login_required
 @admin_required
 def view_configuration():
-    read_column = calibre_db.session.query(db.CustomColumns) \
-        .filter(and_(db.CustomColumns.datatype == 'bool', db.CustomColumns.mark_for_delete == 0)).all()
-    restrict_columns = calibre_db.session.query(db.CustomColumns) \
-        .filter(and_(db.CustomColumns.datatype == 'text', db.CustomColumns.mark_for_delete == 0)).all()
+    cc_columns = calibre_db.get_all_cc_columns()
+    read_column = [column for column in cc_columns
+                   if column.datatype == 'bool' and column.mark_for_delete == 0]
+    restrict_columns = [column for column in cc_columns
+                        if column.datatype == 'text' and column.mark_for_delete == 0]
     languages = calibre_db.speaking_language()
     translations = get_available_locale()
     return render_title_template("config_view_edit.html", conf=config, readColumns=read_column,
@@ -1051,6 +1073,12 @@ def add_user_0_restriction(res_type):
 @admin_required
 def add_restriction(res_type, user_id):
     element = request.form.to_dict()
+    new_column_value = strip_whitespaces(element.get('add_element', ''))
+    if res_type in (1, 3):
+        if not new_column_value:
+            return "", 200
+        if ',' in new_column_value:
+            return _("Custom column values cannot contain commas."), 400
     if res_type == 0:  # Tags as template
         if 'submit_allow' in element:
             config.config_allowed_tags = restriction_addition(element, config.list_allowed_tags)
@@ -1061,9 +1089,13 @@ def add_restriction(res_type, user_id):
     if res_type == 1:  # CCustom as template
         if 'submit_allow' in element:
             config.config_allowed_column_value = restriction_addition(element, config.list_allowed_column_values)
+            config.config_denied_column_value = ','.join(
+                value for value in config.list_denied_column_values() if value != new_column_value)
             config.save()
         elif 'submit_deny' in element:
             config.config_denied_column_value = restriction_addition(element, config.list_denied_column_values)
+            config.config_allowed_column_value = ','.join(
+                value for value in config.list_allowed_column_values() if value != new_column_value)
             config.save()
     if res_type == 2:  # Tags per user
         if isinstance(user_id, int):
@@ -1083,10 +1115,14 @@ def add_restriction(res_type, user_id):
             usr = current_user
         if 'submit_allow' in element:
             usr.allowed_column_value = restriction_addition(element, usr.list_allowed_column_values)
+            usr.denied_column_value = ','.join(
+                value for value in usr.list_denied_column_values() if value != new_column_value)
             ub.session_commit("Changed allowed columns of user {} to {}".format(usr.name,
                                                                                 usr.list_allowed_column_values()))
         elif 'submit_deny' in element:
             usr.denied_column_value = restriction_addition(element, usr.list_denied_column_values)
+            usr.allowed_column_value = ','.join(
+                value for value in usr.list_allowed_column_values() if value != new_column_value)
             ub.session_commit("Changed denied columns of user {} to {}".format(usr.name,
                                                                                usr.list_denied_column_values()))
     return ""
@@ -1220,26 +1256,27 @@ def do_full_kobo_sync(userid):
 
 def check_valid_read_column(column):
     if column != "0":
-        if not calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column) \
-          .filter(and_(db.CustomColumns.datatype == 'bool', db.CustomColumns.mark_for_delete == 0)).all():
+        if not any(str(c.id) == str(column) and c.datatype == 'bool' and c.mark_for_delete == 0
+                   for c in calibre_db.get_all_cc_columns()):
             return False
     return True
 
 
 def check_valid_restricted_column(column):
     if column != "0":
-        if not calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column) \
-          .filter(and_(db.CustomColumns.datatype == 'text', db.CustomColumns.mark_for_delete == 0)).all():
+        if not any(str(c.id) == str(column) and c.datatype == 'text' and c.mark_for_delete == 0
+                   for c in calibre_db.get_all_cc_columns()):
             return False
     return True
 
 
 def restriction_addition(element, list_func):
+    new_element = strip_whitespaces(element.get('add_element', ''))
     elementlist = list_func()
     if elementlist == ['']:
         elementlist = []
-    if not element['add_element'] in elementlist:
-        elementlist += [element['add_element']]
+    if new_element and new_element not in elementlist:
+        elementlist.append(new_element)
     return ','.join(elementlist)
 
 
