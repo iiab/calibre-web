@@ -1182,3 +1182,20 @@ def format_custom_column_value(column, value):
     if column.datatype == 'rating':
         return '%.1f' % (value / 2)
     return str(value)
+
+
+def parse_custom_column_value(column, value):
+    """Convert a custom column value from a URL/OPDS path to its database type.
+
+    Raises ValueError/TypeError when the value cannot be represented, so callers
+    can respond with 404 instead of returning an empty or wrong result set.
+    """
+    if column.datatype == 'bool':
+        return str(value).strip().lower() in ('1', 'true', 'yes')
+    if column.datatype == 'int':
+        return int(value)
+    if column.datatype == 'float':
+        return float(value)
+    if column.datatype == 'datetime':
+        return datetime.strptime(str(value)[:19], "%Y-%m-%d %H:%M:%S")
+    return value

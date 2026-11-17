@@ -34,7 +34,7 @@ from sqlalchemy.exc import InvalidRequestError, OperationalError
 from . import logger, config, db, calibre_db, ub, isoLanguages, constants
 from .usermanagement import requires_basic_auth_if_no_ano, auth
 from .helper import get_download_link, get_book_cover, \
-    get_browseable_custom_column, format_custom_column_value
+    get_browseable_custom_column, format_custom_column_value, parse_custom_column_value
 from .pagination import Pagination
 from .web import render_read_books
 
@@ -331,19 +331,10 @@ def feed_custom_property(column_id, book_id):
         if getattr(column, 'normalized', False):
             db_filter = relation.any(db.cc_classes[column.id].id == book_id)
         else:
-            val = book_id
-            if column.datatype == 'bool':
-                val = (str(book_id).lower() == 'true')
-            elif column.datatype == 'int':
-                try: val = int(book_id)
-                except ValueError: abort(404)
-            elif column.datatype == 'float':
-                try: val = float(book_id)
-                except ValueError: abort(404)
-            elif column.datatype == 'datetime':
-                from datetime import datetime
-                try: val = datetime.strptime(book_id[:19], "%Y-%m-%d %H:%M:%S")
-                except ValueError: abort(404)
+            try:
+                val = parse_custom_column_value(column, book_id)
+            except (TypeError, ValueError):
+                abort(404)
             db_filter = relation.any(db.cc_classes[column.id].value == val)
     entries, __, pagination = calibre_db.fill_indexpage((int(off) / (int(config.config_books_per_page)) + 1), 0,
                                                         db.Books,
