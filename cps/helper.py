@@ -20,6 +20,7 @@
 import os
 import random
 import io
+import math
 import mimetypes
 import re
 import regex
@@ -1201,7 +1202,16 @@ def parse_custom_column_value(column, value):
     if column.datatype == 'int':
         return int(value)
     if column.datatype == 'float':
-        return float(value)
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError("Invalid float custom column value: {!r}".format(value))
+        return number
     if column.datatype == 'datetime':
-        return datetime.strptime(str(value)[:19], "%Y-%m-%d %H:%M:%S")
+        text = str(value).strip()
+        for date_format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(text, date_format)
+            except ValueError:
+                continue
+        raise ValueError("Invalid datetime custom column value: {!r}".format(value))
     return value

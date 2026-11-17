@@ -119,15 +119,25 @@ def test_parse_custom_column_value(monkeypatch):
     assert parse_custom_column_value(SimpleNamespace(datatype='float'), '2.5') == 2.5
     assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
                                      '2021-01-02 03:04:05') == datetime.datetime(2021, 1, 2, 3, 4, 5)
+    assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
+                                     '2021-01-02 03:04:05.123456') == \
+        datetime.datetime(2021, 1, 2, 3, 4, 5, 123456)
+    assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
+                                     '2021-01-02') == datetime.datetime(2021, 1, 2)
     assert parse_custom_column_value(SimpleNamespace(datatype='text'), 'abc') == 'abc'
     with pytest.raises(ValueError):
         parse_custom_column_value(SimpleNamespace(datatype='int'), 'abc')
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='float'), 'nan')
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='float'), 'inf')
 
 
 def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monkeypatch):
     from cps import cli_param
     monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
     from cps import admin
+    monkeypatch.setattr(admin, '_', lambda message, **kwargs: message)
 
     config = SimpleNamespace(
         config_allowed_column_value='existing_allowed',
