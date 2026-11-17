@@ -1,14 +1,34 @@
 import datetime
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
 
 from flask import Flask
+from sqlalchemy import Column, Integer
 from sqlalchemy.exc import OperationalError
 
 from cps import db as cps_db
-from cps.db import CalibreDB
+from cps.db import AlchemyEncoder, Base, CalibreDB
+
+
+class BookWithDeletedCustomColumn(Base):
+    __tablename__ = 'book_with_deleted_custom_column'
+    id = Column(Integer, primary_key=True)
+
+    @property
+    def custom_column_99(self):
+        raise AssertionError("relationship of a deleted custom column was read")
+
+
+class BookWithRegisteredCustomColumn(Base):
+    __tablename__ = 'book_with_registered_custom_column'
+    id = Column(Integer, primary_key=True)
+
+    @property
+    def custom_column_1(self):
+        return 'value'
 
 
 def _column(column_id, datatype, normalized=True):
@@ -63,6 +83,19 @@ def test_remove_db_cc_class(monkeypatch):
     assert 7 not in cps_db.cc_classes
 
 
+def test_alchemy_encoder_skips_deleted_custom_columns(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {})
+    encoded = json.loads(json.dumps(BookWithDeletedCustomColumn(id=1), cls=AlchemyEncoder))
+    assert encoded['id'] == 1
+    assert 'custom_column_99' not in encoded
+
+
+def test_alchemy_encoder_keeps_registered_custom_columns(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {1: object()})
+    encoded = json.loads(json.dumps(BookWithRegisteredCustomColumn(id=2), cls=AlchemyEncoder))
+    assert encoded['custom_column_1'] == 'value'
+
+
 def test_parse_custom_column_value():
     from cps import cli_param
     cli_param.gd_path = ':memory:'
@@ -70,7 +103,12 @@ def test_parse_custom_column_value():
 
     assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'True') is True
     assert parse_custom_column_value(SimpleNamespace(datatype='bool'), '1') is True
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'yes') is True
     assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'false') is False
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), '0') is False
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'no') is False
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='bool'), 'garbage')
     assert parse_custom_column_value(SimpleNamespace(datatype='int'), '42') == 42
     assert parse_custom_column_value(SimpleNamespace(datatype='float'), '2.5') == 2.5
     assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
@@ -78,3 +116,31 @@ def test_parse_custom_column_value():
     assert parse_custom_column_value(SimpleNamespace(datatype='text'), 'abc') == 'abc'
     with pytest.raises(ValueError):
         parse_custom_column_value(SimpleNamespace(datatype='int'), 'abc')
+
+
+def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monkeypatch):
+    from cps import admin
+
+    config = SimpleNamespace(
+        config_allowed_column_value='existing_allowed',
+        config_denied_column_value='existing_denied',
+        save=Mock(),
+    )
+    config.list_allowed_column_values = lambda: config.config_allowed_column_value.split(',')
+    config.list_denied_column_values = lambda: config.config_denied_column_value.split(',')
+    monkeypatch.setattr(admin, 'config', config)
+
+    add_restriction = admin.add_restriction.__wrapped__.__wrapped__
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_allow': '', 'add_element': 'new_allowed'}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_deny': '', 'add_element': 'new_denied'}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied'
