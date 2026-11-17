@@ -168,14 +168,12 @@ def _custom_property_rows():
         columns = []
     rows = []
     for column in columns:
-        browseable = (column.id in visible_ids
-                      and column.id in db.cc_classes
-                      and column.datatype in db.browseable_cc_datatypes)
+        browseable = column.id in visible_ids and db.is_browseable_cc_column(column)
         str_id = str(column.id)
         if str_id in sidebar_settings:
             show_in_sidebar = sidebar_settings[str_id]
         else:
-            show_in_sidebar = browseable and column.datatype in ('text', 'enumeration', 'rating')
+            show_in_sidebar = browseable and db.cc_column_defaults_to_sidebar(column)
         rows.append({
             'id': column.id,
             'label': column.label,
@@ -491,9 +489,7 @@ def custom_property_toggle_sidebar(column_id):
         return "", 404
     visible_ids = {col.id for col in
                    calibre_db.get_cc_columns(config, filter_config_custom_read=True)}
-    if (column.id not in visible_ids
-            or column.id not in db.cc_classes
-            or column.datatype not in db.browseable_cc_datatypes):
+    if column.id not in visible_ids or not db.is_browseable_cc_column(column):
         return "", 400
 
     val = request.form.get("show_in_sidebar") == "true"
