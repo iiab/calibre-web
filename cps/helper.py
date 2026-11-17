@@ -1191,7 +1191,12 @@ def parse_custom_column_value(column, value):
     can respond with 404 instead of returning an empty or wrong result set.
     """
     if column.datatype == 'bool':
-        return str(value).strip().lower() in ('1', 'true', 'yes')
+        normalized = str(value).strip().lower()
+        if normalized in ('1', 'true', 'yes'):
+            return True
+        if normalized in ('0', 'false', 'no'):
+            return False
+        raise ValueError("Invalid boolean custom column value: {!r}".format(value))
     if column.datatype == 'int':
         return int(value)
     if column.datatype == 'float':
