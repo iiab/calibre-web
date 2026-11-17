@@ -990,10 +990,11 @@ def do_download_file(book, book_format, client, data, headers):
 
 
 def do_kepubify_metadata_replace(book, file_path):
-    custom_columns = (calibre_db.session.query(db.CustomColumns)
-                      .filter(db.CustomColumns.mark_for_delete == 0)
-                      .filter(db.CustomColumns.datatype.notin_(db.cc_exceptions))
-                      .order_by(db.CustomColumns.label).all())
+    custom_columns = sorted(
+        (column for column in calibre_db.get_all_cc_columns()
+         if column.mark_for_delete == 0),
+        key=lambda column: column.label
+    )
 
     tree, cf_name = get_content_opf(file_path)
     package = create_new_metadata_backup(book, custom_columns, current_user.locale, _("Cover"), lang_type=2)

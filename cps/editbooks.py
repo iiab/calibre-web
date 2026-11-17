@@ -378,9 +378,9 @@ def convert_bookformat(book_id):
 @user_login_required
 def table_get_custom_enum(c_id):
     ret = list()
-    cc = (calibre_db.session.query(db.CustomColumns)
-          .filter(db.CustomColumns.id == c_id)
-          .filter(db.CustomColumns.datatype.notin_(db.cc_exceptions)).one_or_none())
+    cc = next((column for column in calibre_db.get_all_cc_columns() if column.id == c_id), None)
+    if not cc:
+        abort(404)
     ret.append({'value': "", 'text': ""})
     for idx, en in enumerate(cc.get_display_dict()['enum_values']):
         ret.append({'value': en, 'text': en})
@@ -1230,8 +1230,7 @@ def delete_whole_book(book_id, book):
     modify_database_object([u''], book.languages, db.Languages, calibre_db.session, 'languages')
     modify_database_object([u''], book.publishers, db.Publishers, calibre_db.session, 'publishers')
 
-    cc = calibre_db.session.query(db.CustomColumns). \
-        filter(db.CustomColumns.datatype.notin_(db.cc_exceptions)).all()
+    cc = calibre_db.get_all_cc_columns()
     for c in cc:
         cc_string = "custom_column_" + str(c.id)
         if not c.is_multiple:
@@ -1365,7 +1364,7 @@ def delete_book_from_table(book_id):
 
 
 def render_edit_book(book_id):
-    cc = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.datatype.notin_(db.cc_exceptions)).all()
+    cc = calibre_db.get_all_cc_columns()
     book = calibre_db.get_filtered_book(book_id, allow_show_archived=True)
     if not book:
         flash(_("Oops! Selected book is unavailable. File does not exist or is not accessible"),
@@ -1597,16 +1596,12 @@ def edit_cc_data_string(book, c, to_save, cc_db_value, cc_string):
 
 
 def edit_single_cc_data(book_id, book, column_id, to_save):
-    cc = (calibre_db.session.query(db.CustomColumns)
-          .filter(db.CustomColumns.datatype.notin_(db.cc_exceptions))
-          .filter(db.CustomColumns.id == column_id)
-          .all())
+    cc = [column for column in calibre_db.get_all_cc_columns() if column.id == column_id]
     return edit_cc_data(book_id, book, to_save, cc)
 
 
 def edit_all_cc_data(book_id, book, to_save):
-    cc = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.datatype.notin_(db.cc_exceptions)).all()
-    return edit_cc_data(book_id, book, to_save, cc)
+    return edit_cc_data(book_id, book, to_save, calibre_db.get_all_cc_columns())
 
 
 def edit_cc_data(book_id, book, to_save, cc):

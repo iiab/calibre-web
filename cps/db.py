@@ -1095,12 +1095,23 @@ class CalibreDB:
 
         return base_query.filter(or_(*filter_expression))
 
-    def get_cc_columns(self, config, filter_config_custom_read=False):
+    def get_all_cc_columns(self, include_exceptions=False):
+        """Return custom columns, or [] when metadata.db has no custom_columns table.
+
+        ``include_exceptions`` also returns composite/series columns, which Calibre-Web
+        does not otherwise support but which the admin page still manages.
+        """
         try:
-            tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+            query = self.session.query(CustomColumns)
+            if not include_exceptions:
+                query = query.filter(CustomColumns.datatype.notin_(cc_exceptions))
+            return query.all()
         except (OperationalError, InvalidRequestError) as ex:
             log.warning("Unable to load custom columns: %s", ex)
             return []
+
+    def get_cc_columns(self, config, filter_config_custom_read=False):
+        tmp_cc = self.get_all_cc_columns()
         cc = []
         r = None
         if config.config_columns_to_ignore:
