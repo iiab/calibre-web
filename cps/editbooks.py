@@ -412,7 +412,7 @@ def toggle_cc(book_id, column_id):
         edit_single_cc_data(book_id, book, column_id, to_save)
         book.last_modified = datetime.now(timezone.utc)
         calibre_db.set_metadata_dirty(book.id)
-        kobo_sync_status.remove_synced_book(book_id)
+        kobo_sync_status.remove_synced_book(book_id, all=True)
         calibre_db.session.commit()
     except Exception as ex:
         calibre_db.session.rollback()
