@@ -391,29 +391,34 @@ def table_get_custom_enum(c_id):
 @login_required_if_no_ano
 @edit_required
 def toggle_cc(book_id, column_id):
-    book = calibre_db.session.query(db.Books).filter(db.Books.id == book_id).first()
+    book = calibre_db.get_filtered_book(book_id, allow_show_archived=True)
     if not book:
         return "Book not found", 404
-        
+
     cc = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column_id).first()
     if not cc or cc.datatype != 'bool':
         return "Invalid column", 400
-        
+    if column_id not in db.cc_classes:
+        # A column created by another worker process is not available until reload
+        return "Custom column is not loaded, please reload Calibre-Web", 409
+
     cc_string = "custom_column_" + str(column_id)
     current_value = False
     if len(getattr(book, cc_string)) > 0:
-        current_value = getattr(book, cc_string)[0].value
-        
-    new_val = False if current_value else True
-    to_save = {cc_string: 'True' if new_val else 'False'}
-    
+        current_value = bool(getattr(book, cc_string)[0].value)
+
+    to_save = {cc_string: 'False' if current_value else 'True'}
     try:
         edit_single_cc_data(book_id, book, column_id, to_save)
+        book.last_modified = datetime.now(timezone.utc)
+        calibre_db.set_metadata_dirty(book.id)
+        kobo_sync_status.remove_synced_book(book_id)
         calibre_db.session.commit()
     except Exception as ex:
-        log.error("Could not toggle custom column: %e", ex)
+        calibre_db.session.rollback()
+        log.error_or_exception(ex)
         return "Error", 400
-        
+
     return ""
 
 
