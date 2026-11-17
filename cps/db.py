@@ -57,7 +57,20 @@ cc_exceptions = ['composite', 'series']
 # Custom column types that can be browsed in the sidebar/OPDS. Types whose values are
 # not safe to put in URL paths (comments) are only shown on the detail/edit pages.
 browseable_cc_datatypes = ('text', 'enumeration', 'rating', 'int', 'float', 'bool', 'datetime')
+# Column types that are shown in the sidebar by default, when no per-column setting exists.
+default_sidebar_cc_datatypes = ('text', 'enumeration', 'rating')
 cc_classes = {}
+
+
+def is_browseable_cc_column(column):
+    """True when the column is loaded in this worker and its values are safe in URL paths."""
+    return column.id in cc_classes and column.datatype in browseable_cc_datatypes
+
+
+def cc_column_defaults_to_sidebar(column):
+    """True when this column is shown in the sidebar unless the admin configured otherwise."""
+    return getattr(column, 'normalized', False) and column.datatype in default_sidebar_cc_datatypes
+
 
 Base = declarative_base()
 
@@ -736,8 +749,12 @@ class CalibreDB:
             if missing_cc:
                 cls.setup_db_cc_classes(missing_cc)
         except OperationalError as e:
-            # A Calibre database without custom columns is still usable; get_cc_columns
-            # reports an empty list for the same reason.
+            # A Calibre database without a custom_columns table is still usable;
+            # get_cc_columns reports an empty list for the same reason. Do not hide
+            # other errors (locked or corrupt database) behind the same message.
+            if "no such table" not in str(e).lower():
+                log.error_or_exception(e)
+                return None
             log.warning("Unable to load custom columns: %s", e)
 
         return scoped_session(sessionmaker(autocommit=False,
@@ -1110,14 +1127,14 @@ class CalibreDB:
         sidebar_settings = getattr(config, "config_custom_sidebar_columns", None) or {}
         browseable = []
         for col in self.get_cc_columns(config, filter_config_custom_read=True):
-            if col.id not in cc_classes or col.datatype not in browseable_cc_datatypes:
+            if not is_browseable_cc_column(col):
                 continue
             str_id = str(col.id)
             if str_id in sidebar_settings:
                 if sidebar_settings[str_id]:
                     browseable.append(col)
             else:
-                if getattr(col, 'normalized', False) and col.datatype in ('text', 'enumeration', 'rating'):
+                if cc_column_defaults_to_sidebar(col):
                     browseable.append(col)
         try:
             g.browseable_cc_columns = browseable
