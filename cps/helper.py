@@ -918,6 +918,38 @@ def save_cover(img, book_path):
         return save_cover_from_filestorage(os.path.join(config.get_book_path(), book_path), "cover.jpg", img)
 
 
+def get_x_accel_redirect_response(file_path, headers=None):
+    """Return an nginx X-Accel-Redirect response for a file in the Calibre library.
+
+    nginx serves /protected-stream/<path> from the library root (see
+    scripts/calibre-web-nginx.conf), so the file is sent by nginx instead of
+    being read by the Python process. This keeps memory use constant when
+    downloading large files.
+
+    Returns None when the file is outside the library root (for example a
+    staged kepubify or calibre-export copy in the temp directory), because
+    nginx's internal alias cannot reach it. Callers then fall back to Flask's
+    send_from_directory().
+    """
+    library_root = config.get_book_path()
+    if not library_root:
+        return None
+    file_path = os.path.abspath(file_path)
+    try:
+        relative_path = os.path.relpath(file_path, os.path.abspath(library_root))
+    except ValueError:
+        # e.g. the library is on another drive on Windows
+        return None
+    if relative_path in (os.curdir, os.pardir) or relative_path.startswith(os.pardir + os.sep):
+        return None
+    response = make_response("")
+    response.headers["X-Accel-Redirect"] = "/protected-stream/" + quote(relative_path.replace(os.sep, "/"))
+    if headers:
+        for key, value in headers.items():
+            response.headers[key] = value
+    return response
+
+
 def do_download_file(book, book_format, client, data, headers):
     book_name = data.name
     download_name = filename = None
@@ -980,10 +1012,13 @@ def do_download_file(book, book_format, client, data, headers):
             except OSError as ex:
                 log.warning('Failed to remove staged download %s: %s', _tmp_path, ex)
             return resp
-    response = make_response(send_from_directory(filename, download_name + "." + book_format))
-    # ToDo Check headers parameter
-    for element in headers:
-        response.headers[element[0]] = element[1]
+    file_path = os.path.join(filename, download_name + "." + book_format)
+    response = get_x_accel_redirect_response(file_path, headers)
+    if response is None:
+        response = make_response(send_from_directory(filename, download_name + "." + book_format))
+        # ToDo Check headers parameter
+        for element in headers:
+            response.headers[element[0]] = element[1]
     log.info('Downloading file: \'%s\' by %s - %s', format(os.path.join(filename, book_name + "." + book_format)),
              current_user.name, request.headers.get('X-Forwarded-For', request.remote_addr))
     return response

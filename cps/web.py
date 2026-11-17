@@ -35,7 +35,6 @@ from sqlalchemy.exc import IntegrityError, InvalidRequestError, OperationalError
 from sqlalchemy.sql.expression import text, func, false, not_, and_, or_
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.sql.functions import coalesce
-from urllib.parse import quote
 from werkzeug.datastructures import Headers
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -48,7 +47,7 @@ from .helper import check_valid_domain, check_email, check_username, \
     get_book_cover, get_series_cover_thumbnail, get_download_link, send_mail, generate_random_password, \
     send_registration_mail, check_send_to_ereader, check_read_formats, tags_filters, reset_password, valid_email, \
     edit_book_read_status, valid_password, get_browseable_custom_column, format_custom_column_value, \
-    custom_column_page
+    custom_column_page, get_x_accel_redirect_response
 from .binary_helper import resolve_binary_path, SUPPORTED_UNRAR_BINARIES
 from .pagination import Pagination
 from .redirect import get_redirect_location
@@ -1770,31 +1769,28 @@ def read_book(book_id, book_format):
                     # return serve_book.__closure__[0].cell_contents(book_id, fileExt, anyname="")
                     flash(_("Video streaming via Google Drive is not implemented yet."), category="error")
                     return redirect(url_for("web.index"))
-                else:                    
-                    video_folder_path = os.path.join(config.config_calibre_dir, book.path)
+                else:
+                    video_folder_path = os.path.join(config.get_book_path(), book.path)
                     absolute_video_file_path = None
-    
+
                     for file_in_dir in os.listdir(video_folder_path):
                         if file_in_dir.lower().endswith("." + fileExt):
                             absolute_video_file_path = os.path.join(video_folder_path, file_in_dir)
                             break
 
-                    # Construct path relative to Calibre library root for X-Accel-Redirect URI
-                    if absolute_video_file_path.startswith(config.config_calibre_dir):
-                        path_relative = os.path.relpath(absolute_video_file_path, config.config_calibre_dir)
-                    else:
-                        log.error(f"Video path {absolute_video_file_path} not under config_calibre_dir {config.config_calibre_dir}")
+                    if not absolute_video_file_path:
+                        log.error(f"No {fileExt} file found for book {book_id} in {video_folder_path}")
+                        flash(_("Oops! Selected book is unavailable. File does not exist or is not accessible"),
+                              category="error")
+                        return redirect(url_for("web.index"))
+
+                    accel_response = get_x_accel_redirect_response(
+                        absolute_video_file_path, {"Content-Type": f"video/{fileExt}"})
+                    if accel_response is None:
+                        log.error(f"Video path {absolute_video_file_path} not under book path {config.get_book_path()}")
                         flash(_("Oops! Video path configuration error."), category="error")
                         return redirect(url_for("web.index"))
 
-                    uri_path_component = quote(path_relative.replace(os.sep, "/"))
-                    internal_video_path = f"/protected-stream/{uri_path_component}"
-
-                    accel_response = make_response("")
-                    accel_response.headers['X-Accel-Redirect'] = internal_video_path
-                    mimetype = f'video/{fileExt}'
-                    accel_response.headers['Content-Type'] = mimetype
-                    
                     return accel_response
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
