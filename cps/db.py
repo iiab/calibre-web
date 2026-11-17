@@ -54,6 +54,9 @@ from .string_helper import strip_whitespaces
 log = logger.create()
 
 cc_exceptions = ['composite', 'series']
+# Custom column types that can be browsed in the sidebar/OPDS. Types whose values are
+# not safe to put in URL paths (comments) are only shown on the detail/edit pages.
+browseable_cc_datatypes = ('text', 'enumeration', 'rating', 'int', 'float', 'bool', 'datetime')
 cc_classes = {}
 
 Base = declarative_base()
@@ -634,6 +637,16 @@ class CalibreDB:
                                      backref='books'))
 
     @classmethod
+    def remove_db_cc_class(cls, column_id):
+        """Forget a custom column that was removed from the Calibre database.
+
+        SQLAlchemy cannot unmap a single relationship, so the attributes that were
+        added to Books stay in place. Every lookup goes through cc_classes, which is
+        what makes the column unavailable to the browse/edit/OPDS code.
+        """
+        cc_classes.pop(column_id, None)
+
+    @classmethod
     def check_valid_db(cls, config_calibre_dir, app_db_path, config_calibre_uuid):
         if not config_calibre_dir:
             return False, False
@@ -718,8 +731,9 @@ class CalibreDB:
             if missing_cc:
                 cls.setup_db_cc_classes(missing_cc)
         except OperationalError as e:
-            log.error_or_exception(e)
-            return None
+            # A Calibre database without custom columns is still usable; get_cc_columns
+            # reports an empty list for the same reason.
+            log.warning("Unable to load custom columns: %s", e)
 
         return scoped_session(sessionmaker(autocommit=False,
                                            autoflush=False,
@@ -1080,9 +1094,19 @@ class CalibreDB:
         return cc
 
     def get_browseable_cc_columns(self, config):
+        # The sidebar is rendered on every page, so cache the result for the request
+        try:
+            cached = g.get("browseable_cc_columns")
+        except RuntimeError:
+            cached = None
+        if cached is not None:
+            return cached
+
         sidebar_settings = getattr(config, "config_custom_sidebar_columns", None) or {}
         browseable = []
         for col in self.get_cc_columns(config, filter_config_custom_read=True):
+            if col.id not in cc_classes or col.datatype not in browseable_cc_datatypes:
+                continue
             str_id = str(col.id)
             if str_id in sidebar_settings:
                 if sidebar_settings[str_id]:
@@ -1090,6 +1114,10 @@ class CalibreDB:
             else:
                 if getattr(col, 'normalized', False) and col.datatype in ('text', 'enumeration', 'rating'):
                     browseable.append(col)
+        try:
+            g.browseable_cc_columns = browseable
+        except RuntimeError:
+            pass
         return browseable
 
     # read search results from calibre-database and return it (function is used for feed and simple search
