@@ -54,7 +54,23 @@ from .string_helper import strip_whitespaces
 log = logger.create()
 
 cc_exceptions = ['composite', 'series']
+# Custom column types that can be browsed in the sidebar/OPDS. Types whose values are
+# not safe to put in URL paths (comments) are only shown on the detail/edit pages.
+browseable_cc_datatypes = ('text', 'enumeration', 'rating', 'int', 'float', 'bool', 'datetime')
+# Column types that are shown in the sidebar by default, when no per-column setting exists.
+default_sidebar_cc_datatypes = ('text', 'enumeration', 'rating')
 cc_classes = {}
+
+
+def is_browseable_cc_column(column):
+    """True when the column is loaded in this worker and its values are safe in URL paths."""
+    return column.id in cc_classes and column.datatype in browseable_cc_datatypes
+
+
+def cc_column_defaults_to_sidebar(column):
+    """True when this column is shown in the sidebar unless the admin configured otherwise."""
+    return getattr(column, 'normalized', False) and column.datatype in default_sidebar_cc_datatypes
+
 
 Base = declarative_base()
 
@@ -515,8 +531,13 @@ class AlchemyEncoder(json.JSONEncoder):
             for field in [x for x in dir(o) if not x.startswith('_') and x != 'metadata' and x != "password"]:
                 if field == 'books':
                     continue
-                data = o.__getattribute__(field)
+                custom_column = re.match(r'^custom_column_(\d+)$', field)
+                if custom_column and int(custom_column.group(1)) not in cc_classes:
+                    # The column was deleted from metadata.db. Its relationship is still
+                    # mapped on Books, so reading it would query a table that is gone.
+                    continue
                 try:
+                    data = o.__getattribute__(field)
                     if isinstance(data, str):
                         data = data.replace("'", "\'")
                     elif isinstance(data, InstrumentedList):
@@ -634,6 +655,16 @@ class CalibreDB:
                                      backref='books'))
 
     @classmethod
+    def remove_db_cc_class(cls, column_id):
+        """Forget a custom column that was removed from the Calibre database.
+
+        SQLAlchemy cannot unmap a single relationship, so the attributes that were
+        added to Books stay in place. Every lookup goes through cc_classes, which is
+        what makes the column unavailable to the browse/edit/OPDS code.
+        """
+        cc_classes.pop(column_id, None)
+
+    @classmethod
     def check_valid_db(cls, config_calibre_dir, app_db_path, config_calibre_uuid):
         if not config_calibre_dir:
             return False, False
@@ -718,8 +749,13 @@ class CalibreDB:
             if missing_cc:
                 cls.setup_db_cc_classes(missing_cc)
         except OperationalError as e:
-            log.error_or_exception(e)
-            return None
+            # A Calibre database without a custom_columns table is still usable;
+            # get_cc_columns reports an empty list for the same reason. Do not hide
+            # other errors (locked or corrupt database) behind the same message.
+            if "no such table" not in str(e).lower():
+                log.error_or_exception(e)
+                return None
+            log.warning("Unable to load custom columns: %s", e)
 
         return scoped_session(sessionmaker(autocommit=False,
                                            autoflush=False,
@@ -1059,12 +1095,23 @@ class CalibreDB:
 
         return base_query.filter(or_(*filter_expression))
 
-    def get_cc_columns(self, config, filter_config_custom_read=False):
+    def get_all_cc_columns(self, include_exceptions=False):
+        """Return custom columns, or [] when metadata.db has no custom_columns table.
+
+        ``include_exceptions`` also returns composite/series columns, which Calibre-Web
+        does not otherwise support but which the admin page still manages.
+        """
         try:
-            tmp_cc = self.session.query(CustomColumns).filter(CustomColumns.datatype.notin_(cc_exceptions)).all()
+            query = self.session.query(CustomColumns)
+            if not include_exceptions:
+                query = query.filter(CustomColumns.datatype.notin_(cc_exceptions))
+            return query.all()
         except (OperationalError, InvalidRequestError) as ex:
             log.warning("Unable to load custom columns: %s", ex)
             return []
+
+    def get_cc_columns(self, config, filter_config_custom_read=False):
+        tmp_cc = self.get_all_cc_columns()
         cc = []
         r = None
         if config.config_columns_to_ignore:
@@ -1080,16 +1127,30 @@ class CalibreDB:
         return cc
 
     def get_browseable_cc_columns(self, config):
+        # The sidebar is rendered on every page, so cache the result for the request
+        try:
+            cached = g.get("browseable_cc_columns")
+        except RuntimeError:
+            cached = None
+        if cached is not None:
+            return cached
+
         sidebar_settings = getattr(config, "config_custom_sidebar_columns", None) or {}
         browseable = []
         for col in self.get_cc_columns(config, filter_config_custom_read=True):
+            if not is_browseable_cc_column(col):
+                continue
             str_id = str(col.id)
             if str_id in sidebar_settings:
                 if sidebar_settings[str_id]:
                     browseable.append(col)
             else:
-                if getattr(col, 'normalized', False) and col.datatype in ('text', 'enumeration', 'rating'):
+                if cc_column_defaults_to_sidebar(col):
                     browseable.append(col)
+        try:
+            g.browseable_cc_columns = browseable
+        except RuntimeError:
+            pass
         return browseable
 
     # read search results from calibre-database and return it (function is used for feed and simple search

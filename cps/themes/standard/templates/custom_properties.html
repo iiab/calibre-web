@@ -1,4 +1,4 @@
-{% extends "layout.html" %}
+{% extends theme("layout.html") %}
 {% block body %}
 <div class="discover">
   <h1 class="{{page}}">{{title}}</h1>
@@ -6,6 +6,7 @@
     <div class="alert alert-info" role="alert">
       <strong>{{_('Custom Properties')}}</strong>
       {{_('Custom properties are library-specific fields backed by Calibre custom columns. Use them for metadata such as participants, location, production notes, or other local classifications.')}}
+      {{_('Sidebar visibility follows the Categories section, and new properties may require a restart when Calibre-Web runs multiple worker processes.')}}
     </div>
 
     <h3>{{_('Existing Properties')}}</h3>
@@ -30,7 +31,7 @@
             <td>{{ column.datatype }}</td>
             <td>{% if column.is_multiple %}{{_('Yes')}}{% else %}{{_('No')}}{% endif %}</td>
             <td>
-              <input type="checkbox" class="sidebar-toggle" data-id="{{ column.id }}" {% if not column.supported_in_cw %}disabled{% endif %} {% if column.show_in_sidebar %}checked{% endif %}>
+              <input type="checkbox" class="sidebar-toggle" data-id="{{ column.id }}" {% if not column.browseable %}disabled{% endif %} {% if column.show_in_sidebar %}checked{% endif %}>
             </td>
             <td>
               <button type="button" class="btn btn-xs btn-default edit-property" data-label="{{ column.label }}" data-name="{{ column.name }}">
@@ -61,7 +62,12 @@
         <label for="name">{{_('Display Name')}}</label>
         <input type="text" class="form-control" id="name" name="name" value="{{ form_data.get('name', '') }}" required>
       </div>
-      <input type="hidden" id="label" name="label" value="{{ form_data.get('label', '') }}">
+      <div class="form-group">
+        <label for="label">{{_('Label')}}</label>
+        <input type="text" class="form-control" id="label" name="label" value="{{ form_data.get('label', '') }}"
+               pattern="[a-z][a-z0-9_]*" title="{{_('Lowercase letters, numbers, and underscores; must start with a letter')}}" required>
+        <p class="help-block">{{_('Used as the Calibre column name and cannot be changed later. Generated from the display name, but you can edit it (required for names without Latin letters).')}}</p>
+      </div>
       <div class="form-group">
         <label for="datatype">{{_('Property Type')}}</label>
         <select class="form-control" id="datatype" name="datatype">
@@ -137,7 +143,14 @@
         $datatype.on('change', updateVisibility);
         updateVisibility();
 
+        var labelEdited = $('#label').val() !== '';
+        $('#label').on('input', function() {
+            labelEdited = true;
+        });
         $('#name').on('input', function() {
+            if (labelEdited) {
+                return;
+            }
             var name = $(this).val();
             var label = name.toLowerCase().replace(/[^a-z0-9_]/g, '');
             if (label.length > 0 && !label.charAt(0).match(/[a-z]/)) {

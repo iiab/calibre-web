@@ -26,6 +26,7 @@ import json
 import ipaddress
 import operator
 import shutil
+import subprocess
 import time
 import sys
 import string
@@ -40,7 +41,6 @@ from markupsafe import Markup
 from .cw_login import current_user
 from flask_babel import gettext as _
 from flask_babel import get_locale, format_time, format_datetime, format_timedelta
-from sqlalchemy import and_
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.exc import IntegrityError, OperationalError, InvalidRequestError, ArgumentError
 from sqlalchemy.sql.expression import func, or_, text
@@ -138,19 +138,64 @@ def _get_calibredb_binary():
     return shutil.which("calibredb")
 
 
-def _render_custom_properties(form_data=None):
-    custom_columns = calibre_db.session.query(db.CustomColumns).order_by(db.CustomColumns.id).all()
+def _run_calibredb(command, quotes, env, timeout=120):
+    """Run calibredb with no open library session, so Calibre can write to metadata.db."""
+    old_session = g.pop("lib_sql", None)
+    if old_session:
+        old_session.remove()
+    try:
+        process = process_open(command, quotes=quotes, env=env)
+    except OSError as ex:
+        return -1, "", str(ex)
+    try:
+        output, error = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+        return -1, "", _("calibredb did not finish within %(seconds)s seconds.", seconds=timeout)
+    if process.returncode != 0:
+        log.error("calibredb failed: %s", (error or output).strip())
+    return process.returncode, output, error
+
+
+def _calibredb_error_message(error, output, default):
+    """Return the useful part of a calibredb failure without its Python traceback."""
+    message = (error or output or default).strip()
+    lines = [line.strip() for line in message.splitlines() if line.strip()]
+    if any(line.startswith("Traceback (most recent call last)") for line in lines):
+        message = lines[-1]
+    return message
+
+
+def _custom_property_rows():
     sidebar_settings = config.config_custom_sidebar_columns or {}
-    for column in custom_columns:
-        column.supported_in_cw = column.datatype not in db.cc_exceptions
+    visible_ids = {column.id for column in
+                   calibre_db.get_cc_columns(config, filter_config_custom_read=True)}
+    columns = sorted(calibre_db.get_all_cc_columns(include_exceptions=True), key=lambda column: column.id)
+    rows = []
+    for column in columns:
+        browseable = column.id in visible_ids and db.is_browseable_cc_column(column)
         str_id = str(column.id)
         if str_id in sidebar_settings:
-            column.show_in_sidebar = sidebar_settings[str_id]
+            show_in_sidebar = sidebar_settings[str_id]
         else:
-            column.show_in_sidebar = column.datatype in ('text', 'enumeration', 'rating')
+            show_in_sidebar = browseable and db.cc_column_defaults_to_sidebar(column)
+        rows.append({
+            'id': column.id,
+            'label': column.label,
+            'name': column.name,
+            'datatype': column.datatype,
+            'is_multiple': column.is_multiple,
+            'browseable': browseable,
+            'show_in_sidebar': show_in_sidebar,
+        })
+    return rows
+
+
+def _render_custom_properties(form_data=None):
     return render_title_template(
         "custom_properties.html",
-        custom_columns=custom_columns,
+        custom_columns=_custom_property_rows(),
         property_types=_custom_property_type_choices(),
         form_data=form_data or _default_custom_property_form(),
         title=_("Custom Properties"),
@@ -181,6 +226,14 @@ def _create_custom_property():
     if form_data["datatype"] != 'text':
         form_data["is_multiple"] = False
 
+    existing_columns = calibre_db.get_all_cc_columns(include_exceptions=True)
+    if any(column.label == form_data["label"] for column in existing_columns):
+        flash(_("A custom property with this label already exists."), category="error")
+        return _render_custom_properties(form_data)
+    if any((column.name or '').casefold() == form_data["name"].casefold() for column in existing_columns):
+        flash(_("A custom property with this display name already exists."), category="error")
+        return _render_custom_properties(form_data)
+
     display = {}
     if form_data["datatype"] == 'enumeration':
         enum_values = [strip_whitespaces(value) for value in form_data["enum_values"].split(',')]
@@ -208,16 +261,12 @@ def _create_custom_property():
         command.append('--is-multiple')
     command.extend([form_data["label"], form_data["name"], form_data["datatype"]])
 
-    quotes = [0, 3, 5, len(command) - 2]
-    process = process_open(command, quotes=quotes, env=my_env)
-    output, error = process.communicate()
-    if process.returncode != 0:
-        flash((error or output or _("Failed to create the custom property.")).strip(), category="error")
+    quotes = [0, 3, 5, len(command) - 3, len(command) - 2]
+    returncode, output, error = _run_calibredb(command, quotes, my_env)
+    if returncode != 0:
+        flash(_calibredb_error_message(error, output, _("Failed to create the custom property.")), category="error")
         return _render_custom_properties(form_data)
 
-    old_session = g.pop("lib_sql", None)
-    if old_session:
-        old_session.remove()
     calibre_db.reconnect_db(config, ub.app_DB_path)
     flash(_("Custom property %(name)s created successfully.", name=form_data["name"]), category="success")
     return redirect(url_for('admin.custom_properties'))
@@ -377,6 +426,22 @@ def custom_properties():
 @user_login_required
 @admin_required
 def custom_property_delete(label):
+    if not re.match(r'^[a-z][a-z0-9_]*$', label):
+        flash(_("Invalid custom property label."), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
+    column = next((column for column in calibre_db.get_all_cc_columns(include_exceptions=True)
+                   if column.label == label), None)
+    if not column:
+        flash(_("Custom property not found."), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
+    column_id = column.id
+    if column_id in (config.config_read_column, config.config_restricted_column):
+        flash(_("Custom property %(name)s is used by the read status or view restriction settings "
+                "and cannot be deleted. Clear those settings first.", name=column.name), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
     calibredb_binary = _get_calibredb_binary()
     if not calibredb_binary:
         flash(_("Calibre's calibredb binary could not be found. Configure the Calibre binaries path or install calibre."),
@@ -392,17 +457,19 @@ def custom_property_delete(label):
         my_env['CALIBRE_OVERRIDE_DATABASE_PATH'] = os.path.join(config.config_calibre_dir, "metadata.db")
 
     command = [calibredb_binary, 'remove_custom_column', '--force', '--with-library', library_path, label]
-    
-    quotes = [0, 4]
-    process = process_open(command, quotes=quotes, env=my_env)
-    output, error = process.communicate()
-    if process.returncode != 0:
-        flash((error or output or _("Failed to delete the custom property.")).strip(), category="error")
+
+    returncode, output, error = _run_calibredb(command, [0, 4], my_env)
+    if returncode != 0:
+        flash(_calibredb_error_message(error, output, _("Failed to delete the custom property.")), category="error")
         return redirect(url_for('admin.custom_properties'))
 
-    old_session = g.pop("lib_sql", None)
-    if old_session:
-        old_session.remove()
+    calibre_db.remove_db_cc_class(column_id)
+    sidebar_settings = config.config_custom_sidebar_columns or {}
+    if str(column_id) in sidebar_settings:
+        sidebar_settings = dict(sidebar_settings)
+        sidebar_settings.pop(str(column_id), None)
+        config.config_custom_sidebar_columns = sidebar_settings
+        config.save()
     calibre_db.reconnect_db(config, ub.app_DB_path)
     flash(_("Custom property deleted successfully."), category="success")
     return redirect(url_for('admin.custom_properties'))
@@ -412,19 +479,24 @@ def custom_property_delete(label):
 @user_login_required
 @admin_required
 def custom_property_edit(label):
-    new_name = request.form.get("name", "").strip()
+    new_name = strip_whitespaces(request.form.get("name", ""))
     if not new_name:
         flash(_("Please provide a display name."), category="error")
         return redirect(url_for('admin.custom_properties'))
-        
-    column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.label == label).first()
+
+    columns = calibre_db.get_all_cc_columns(include_exceptions=True)
+    column = next((column for column in columns if column.label == label), None)
     if not column:
         flash(_("Custom property not found."), category="error")
         return redirect(url_for('admin.custom_properties'))
-        
+    if any(other.id != column.id and (other.name or '').casefold() == new_name.casefold()
+           for other in columns):
+        flash(_("A custom property with this display name already exists."), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
     column.name = new_name
     calibre_db.session.commit()
-    
+
     flash(_("Custom property %(name)s updated successfully.", name=new_name), category="success")
     return redirect(url_for('admin.custom_properties'))
 
@@ -432,10 +504,15 @@ def custom_property_edit(label):
 @user_login_required
 @admin_required
 def custom_property_toggle_sidebar(column_id):
-    column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column_id).first()
+    column = next((column for column in calibre_db.get_all_cc_columns(include_exceptions=True)
+                   if column.id == column_id), None)
     if not column:
         return "", 404
-        
+    visible_ids = {col.id for col in
+                   calibre_db.get_cc_columns(config, filter_config_custom_read=True)}
+    if column.id not in visible_ids or not db.is_browseable_cc_column(column):
+        return "", 400
+
     val = request.form.get("show_in_sidebar") == "true"
     sidebar_settings = config.config_custom_sidebar_columns or {}
     # Create a new dict because SQLAlchemy JSON columns don't detect in-place dict modifications reliably
@@ -482,10 +559,11 @@ def calibreweb_alive():
 @user_login_required
 @admin_required
 def view_configuration():
-    read_column = calibre_db.session.query(db.CustomColumns) \
-        .filter(and_(db.CustomColumns.datatype == 'bool', db.CustomColumns.mark_for_delete == 0)).all()
-    restrict_columns = calibre_db.session.query(db.CustomColumns) \
-        .filter(and_(db.CustomColumns.datatype == 'text', db.CustomColumns.mark_for_delete == 0)).all()
+    cc_columns = calibre_db.get_all_cc_columns()
+    read_column = [column for column in cc_columns
+                   if column.datatype == 'bool' and column.mark_for_delete == 0]
+    restrict_columns = [column for column in cc_columns
+                        if column.datatype == 'text' and column.mark_for_delete == 0]
     languages = calibre_db.speaking_language()
     translations = get_available_locale()
     return render_title_template("config_view_edit.html", conf=config, readColumns=read_column,
@@ -995,6 +1073,12 @@ def add_user_0_restriction(res_type):
 @admin_required
 def add_restriction(res_type, user_id):
     element = request.form.to_dict()
+    new_column_value = strip_whitespaces(element.get('add_element', ''))
+    if res_type in (1, 3):
+        if not new_column_value:
+            return "", 200
+        if ',' in new_column_value:
+            return _("Custom column values cannot contain commas."), 400
     if res_type == 0:  # Tags as template
         if 'submit_allow' in element:
             config.config_allowed_tags = restriction_addition(element, config.list_allowed_tags)
@@ -1004,10 +1088,14 @@ def add_restriction(res_type, user_id):
             config.save()
     if res_type == 1:  # CCustom as template
         if 'submit_allow' in element:
-            config.config_allowed_column_value = restriction_addition(element, config.list_denied_column_values)
+            config.config_allowed_column_value = restriction_addition(element, config.list_allowed_column_values)
+            config.config_denied_column_value = ','.join(
+                value for value in config.list_denied_column_values() if value != new_column_value)
             config.save()
         elif 'submit_deny' in element:
-            config.config_denied_column_value = restriction_addition(element, config.list_allowed_column_values)
+            config.config_denied_column_value = restriction_addition(element, config.list_denied_column_values)
+            config.config_allowed_column_value = ','.join(
+                value for value in config.list_allowed_column_values() if value != new_column_value)
             config.save()
     if res_type == 2:  # Tags per user
         if isinstance(user_id, int):
@@ -1027,10 +1115,14 @@ def add_restriction(res_type, user_id):
             usr = current_user
         if 'submit_allow' in element:
             usr.allowed_column_value = restriction_addition(element, usr.list_allowed_column_values)
+            usr.denied_column_value = ','.join(
+                value for value in usr.list_denied_column_values() if value != new_column_value)
             ub.session_commit("Changed allowed columns of user {} to {}".format(usr.name,
                                                                                 usr.list_allowed_column_values()))
         elif 'submit_deny' in element:
             usr.denied_column_value = restriction_addition(element, usr.list_denied_column_values)
+            usr.allowed_column_value = ','.join(
+                value for value in usr.list_allowed_column_values() if value != new_column_value)
             ub.session_commit("Changed denied columns of user {} to {}".format(usr.name,
                                                                                usr.list_denied_column_values()))
     return ""
@@ -1164,26 +1256,27 @@ def do_full_kobo_sync(userid):
 
 def check_valid_read_column(column):
     if column != "0":
-        if not calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column) \
-          .filter(and_(db.CustomColumns.datatype == 'bool', db.CustomColumns.mark_for_delete == 0)).all():
+        if not any(str(c.id) == str(column) and c.datatype == 'bool' and c.mark_for_delete == 0
+                   for c in calibre_db.get_all_cc_columns()):
             return False
     return True
 
 
 def check_valid_restricted_column(column):
     if column != "0":
-        if not calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column) \
-          .filter(and_(db.CustomColumns.datatype == 'text', db.CustomColumns.mark_for_delete == 0)).all():
+        if not any(str(c.id) == str(column) and c.datatype == 'text' and c.mark_for_delete == 0
+                   for c in calibre_db.get_all_cc_columns()):
             return False
     return True
 
 
 def restriction_addition(element, list_func):
+    new_element = strip_whitespaces(element.get('add_element', ''))
     elementlist = list_func()
     if elementlist == ['']:
         elementlist = []
-    if not element['add_element'] in elementlist:
-        elementlist += [element['add_element']]
+    if new_element and new_element not in elementlist:
+        elementlist.append(new_element)
     return ','.join(elementlist)
 
 

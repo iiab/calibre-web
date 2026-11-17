@@ -1,10 +1,45 @@
+import datetime
+import json
 from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
+
 from flask import Flask
+from sqlalchemy import Column, Integer
 from sqlalchemy.exc import OperationalError
 
-from cps.db import CalibreDB
+from cps import db as cps_db
+from cps.db import AlchemyEncoder, Base, CalibreDB
+
+
+class BookWithDeletedCustomColumn(Base):
+    __tablename__ = 'book_with_deleted_custom_column'
+    id = Column(Integer, primary_key=True)
+
+    @property
+    def custom_column_99(self):
+        raise AssertionError("relationship of a deleted custom column was read")
+
+
+class BookWithRegisteredCustomColumn(Base):
+    __tablename__ = 'book_with_registered_custom_column'
+    id = Column(Integer, primary_key=True)
+
+    @property
+    def custom_column_1(self):
+        return 'value'
+
+
+def _column(column_id, datatype, normalized=True):
+    return SimpleNamespace(id=column_id, datatype=datatype, normalized=normalized,
+                           name='column %s' % column_id, label='column_%s' % column_id)
+
+
+def _unwrap(func):
+    while hasattr(func, '__wrapped__'):
+        func = func.__wrapped__
+    return func
 
 
 def test_get_cc_columns_returns_empty_list_when_custom_columns_table_is_missing():
@@ -20,5 +55,195 @@ def test_get_cc_columns_returns_empty_list_when_custom_columns_table_is_missing(
     config = SimpleNamespace(config_columns_to_ignore=None, config_read_column=None)
 
     with Flask(__name__).app_context():
+        assert calibre_db.get_all_cc_columns() == []
         assert calibre_db.get_cc_columns(config) == []
         assert calibre_db.get_browseable_cc_columns(config) == []
+
+
+def test_get_browseable_cc_columns_skips_datatypes_without_url_safe_values(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {1: object(), 2: object(), 3: object()})
+    calibre_db = CalibreDB()
+    calibre_db.get_cc_columns = Mock(return_value=[_column(1, 'text'),
+                                                   _column(2, 'comments'),
+                                                   _column(3, 'int')])
+    config = SimpleNamespace(config_custom_sidebar_columns={})
+
+    with Flask(__name__).app_context():
+        assert [c.id for c in calibre_db.get_browseable_cc_columns(config)] == [1]
+
+
+def test_get_browseable_cc_columns_uses_sidebar_settings(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {1: object(), 2: object(), 3: object()})
+    calibre_db = CalibreDB()
+    calibre_db.get_cc_columns = Mock(return_value=[_column(1, 'text'),
+                                                   _column(2, 'int'),
+                                                   _column(3, 'rating')])
+    config = SimpleNamespace(config_custom_sidebar_columns={'1': False, '2': True, '3': False})
+
+    with Flask(__name__).app_context():
+        assert [c.id for c in calibre_db.get_browseable_cc_columns(config)] == [2]
+
+
+def test_remove_db_cc_class(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {7: object()})
+    CalibreDB.remove_db_cc_class(7)
+    assert 7 not in cps_db.cc_classes
+
+
+def test_alchemy_encoder_skips_deleted_custom_columns(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {})
+    encoded = json.loads(json.dumps(BookWithDeletedCustomColumn(id=1), cls=AlchemyEncoder))
+    assert encoded['id'] == 1
+    assert 'custom_column_99' not in encoded
+
+
+def test_alchemy_encoder_keeps_registered_custom_columns(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {1: object()})
+    encoded = json.loads(json.dumps(BookWithRegisteredCustomColumn(id=2), cls=AlchemyEncoder))
+    assert encoded['custom_column_1'] == 'value'
+
+
+def test_parse_custom_column_value(monkeypatch):
+    from cps import cli_param
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
+    from cps.helper import parse_custom_column_value
+
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'True') is True
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), '1') is True
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'yes') is True
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'false') is False
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), '0') is False
+    assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'no') is False
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='bool'), 'garbage')
+    assert parse_custom_column_value(SimpleNamespace(datatype='int'), '42') == 42
+    assert parse_custom_column_value(SimpleNamespace(datatype='float'), '2.5') == 2.5
+    assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
+                                     '2021-01-02 03:04:05') == datetime.datetime(2021, 1, 2, 3, 4, 5)
+    assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
+                                     '2021-01-02 03:04:05.123456') == \
+        datetime.datetime(2021, 1, 2, 3, 4, 5, 123456)
+    assert parse_custom_column_value(SimpleNamespace(datatype='datetime'),
+                                     '2021-01-02') == datetime.datetime(2021, 1, 2)
+    assert parse_custom_column_value(SimpleNamespace(datatype='text'), 'abc') == 'abc'
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='int'), 'abc')
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='float'), 'nan')
+    with pytest.raises(ValueError):
+        parse_custom_column_value(SimpleNamespace(datatype='float'), 'inf')
+
+
+def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monkeypatch):
+    from cps import cli_param
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
+    from cps import admin
+    monkeypatch.setattr(admin, '_', lambda message, **kwargs: message)
+
+    config = SimpleNamespace(
+        config_allowed_column_value='existing_allowed',
+        config_denied_column_value='existing_denied',
+        save=Mock(),
+    )
+    config.list_allowed_column_values = lambda: config.config_allowed_column_value.split(',')
+    config.list_denied_column_values = lambda: config.config_denied_column_value.split(',')
+    monkeypatch.setattr(admin, 'config', config)
+
+    add_restriction = _unwrap(admin.add_restriction)
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_allow': '', 'add_element': 'new_allowed'}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_deny': '', 'add_element': 'new_denied'}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_allow': '', 'add_element': '   '}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_allow': '', 'add_element': 'has,comma'}):
+        response = add_restriction(1, 0)
+    assert response[1] == 400
+    assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+    with Flask(__name__).test_request_context(
+            '/ajax/addrestriction/1', method='POST',
+            data={'submit_deny': '', 'add_element': 'new_allowed'}):
+        add_restriction(1, 0)
+    assert config.config_allowed_column_value == 'existing_allowed'
+    assert config.config_denied_column_value == 'existing_denied,new_denied,new_allowed'
+
+
+def test_calibredb_error_message_strips_traceback(monkeypatch):
+    from cps import cli_param
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
+    from cps.admin import _calibredb_error_message
+
+    traceback = "Traceback (most recent call last):\n  File \"x.py\", line 1\napsw.SQLError: boom"
+    assert _calibredb_error_message(traceback, "", "fallback") == "apsw.SQLError: boom"
+    assert _calibredb_error_message("", "plain error", "fallback") == "plain error"
+    assert _calibredb_error_message("", "", "fallback") == "fallback"
+
+
+def test_toggle_cc_registers_calibre_functions_before_commit(monkeypatch):
+    from cps import cli_param
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
+    from cps import editbooks, kobo_sync_status
+    from cps import calibre_db as cps_calibre_db
+
+    book = SimpleNamespace(id=2, last_modified=None, custom_column_6=[])
+    fake_session = SimpleNamespace(commit=Mock(), rollback=Mock())
+    monkeypatch.setattr(CalibreDB, 'session', property(lambda self: fake_session))
+    monkeypatch.setattr(cps_db, 'cc_classes', {6: object()})
+    monkeypatch.setattr(cps_calibre_db, 'get_filtered_book', Mock(return_value=book))
+    monkeypatch.setattr(cps_calibre_db, 'get_all_cc_columns', Mock(return_value=[_column(6, 'bool')]))
+    monkeypatch.setattr(cps_calibre_db, 'create_functions', Mock())
+    monkeypatch.setattr(cps_calibre_db, 'set_metadata_dirty', Mock())
+    monkeypatch.setattr(editbooks, 'edit_single_cc_data', Mock())
+    monkeypatch.setattr(kobo_sync_status, 'remove_synced_book', Mock())
+
+    with Flask(__name__).app_context():
+        assert _unwrap(editbooks.toggle_cc)(2, 6) == ""
+
+    cps_calibre_db.create_functions.assert_called_once()
+    fake_session.commit.assert_called_once()
+
+
+def test_is_browseable_cc_column(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {1: object(), 2: object()})
+
+    assert cps_db.is_browseable_cc_column(_column(1, 'text'))
+    assert not cps_db.is_browseable_cc_column(_column(2, 'comments'))
+    assert not cps_db.is_browseable_cc_column(_column(3, 'text'))
+
+
+def test_cc_column_defaults_to_sidebar():
+    assert cps_db.cc_column_defaults_to_sidebar(_column(1, 'rating'))
+    assert not cps_db.cc_column_defaults_to_sidebar(_column(1, 'text', normalized=False))
+    assert not cps_db.cc_column_defaults_to_sidebar(_column(1, 'bool'))
+
+
+def test_rating_stars_does_not_render_unrated_values():
+    from cps.jinjia import rating_stars
+
+    assert rating_stars(0) == ''
+    assert rating_stars('0') == ''
+    assert rating_stars(None) == ''
+
+    rendered = str(rating_stars(9))
+    assert rendered.count('glyphicon-star good') == 4
+    assert rendered.count('glyphicon-star-empty') == 1
+    assert 'rating-value' in rendered

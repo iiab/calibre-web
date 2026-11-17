@@ -20,6 +20,7 @@
 import os
 import random
 import io
+import math
 import mimetypes
 import re
 import regex
@@ -990,10 +991,11 @@ def do_download_file(book, book_format, client, data, headers):
 
 
 def do_kepubify_metadata_replace(book, file_path):
-    custom_columns = (calibre_db.session.query(db.CustomColumns)
-                      .filter(db.CustomColumns.mark_for_delete == 0)
-                      .filter(db.CustomColumns.datatype.notin_(db.cc_exceptions))
-                      .order_by(db.CustomColumns.label).all())
+    custom_columns = sorted(
+        (column for column in calibre_db.get_all_cc_columns()
+         if column.mark_for_delete == 0),
+        key=lambda column: column.label
+    )
 
     tree, cf_name = get_content_opf(file_path)
     package = create_new_metadata_backup(book, custom_columns, current_user.locale, _("Cover"), lang_type=2)
@@ -1182,3 +1184,34 @@ def format_custom_column_value(column, value):
     if column.datatype == 'rating':
         return '%.1f' % (value / 2)
     return str(value)
+
+
+def parse_custom_column_value(column, value):
+    """Convert a custom column value from a URL/OPDS path to its database type.
+
+    Raises ValueError/TypeError when the value cannot be represented, so callers
+    can respond with 404 instead of returning an empty or wrong result set.
+    """
+    if column.datatype == 'bool':
+        normalized = str(value).strip().lower()
+        if normalized in ('1', 'true', 'yes'):
+            return True
+        if normalized in ('0', 'false', 'no'):
+            return False
+        raise ValueError("Invalid boolean custom column value: {!r}".format(value))
+    if column.datatype == 'int':
+        return int(value)
+    if column.datatype == 'float':
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError("Invalid float custom column value: {!r}".format(value))
+        return number
+    if column.datatype == 'datetime':
+        text = str(value).strip()
+        for date_format in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(text, date_format)
+            except ValueError:
+                continue
+        raise ValueError("Invalid datetime custom column value: {!r}".format(value))
+    return value

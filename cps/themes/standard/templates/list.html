@@ -33,21 +33,11 @@
         <div class="col-xs-2 col-sm-2 col-md-1" align="left"><span class="badge">{{entry[1]}}</span></div>
         <div class="col-xs-10 col-sm-10 col-md-11"><a id="list_{{loop.index0}}" href="{% if custom_column is defined %}{{url_for('web.custom_property_books', column_id=custom_column.id, book_id=entry[0].id )}}{% elif entry.format %}{{url_for('web.books_list', data=data, sort_param='stored', book_id=entry.format )}}{% else %}{{url_for('web.books_list', data=data, sort_param='stored', book_id=entry[0].id )}}{% endif %}">
           {% if data == 'ratings' or (custom_column is defined and custom_column.datatype == 'rating') %}
-           <div class="rating">
-          {% set star_value = entry[0].name|float|int %}
-          {% if star_value > 0 %}
-          {% for number in range(star_value) %}
-             <span class="glyphicon glyphicon-star good"></span>
-             {% if loop.last and loop.index < 5 %}
-               {% for numer in range(5 - loop.index) %}
-                 <span class="glyphicon glyphicon-star-empty"></span>
-              {% endfor %}
-            {% endif %}
-          {% endfor %}
+          {% if entry[0].rating is not none and entry[0].rating > 0 %}
+            {{ entry[0].rating|rating_stars }}
           {% else %}
             {{entry[0].name}}
           {% endif %}
-          </div>
           {% else %}
           {% if entry.format %}
             {{entry.format}}

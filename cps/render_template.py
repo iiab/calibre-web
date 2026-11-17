@@ -16,7 +16,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with this program. If not, see <http://www.gnu.org/licenses/>.
 
-from flask import g, abort, request, url_for, render_template
+from flask import g, abort, request, render_template
 from flask_themes2 import render_theme_template
 from jinja2 import TemplateNotFound
 from flask_babel import gettext as _
@@ -121,7 +121,8 @@ def get_sidebar_config(kwargs=None):
                 "visibility": constants.SIDEBAR_CATEGORY,
                 'public': True,
                 "page": 'custom_column_' + str(col.id),
-                "show_text": _('Show %(column)s Section', column=col.name),
+                # sidebar visibility for custom properties follows the Categories setting
+                "show_text": _('Show Custom Properties Section'),
                 "config_show": False,
                 "url_kwargs": {'column_id': col.id},
             })

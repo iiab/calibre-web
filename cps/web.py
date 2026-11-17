@@ -48,7 +48,7 @@ from .helper import check_valid_domain, check_email, check_username, \
     get_book_cover, get_series_cover_thumbnail, get_download_link, send_mail, generate_random_password, \
     send_registration_mail, check_send_to_ereader, check_read_formats, tags_filters, reset_password, valid_email, \
     edit_book_read_status, valid_password, get_browseable_custom_column, format_custom_column_value, \
-    custom_column_page
+    parse_custom_column_value, custom_column_page
 from .binary_helper import resolve_binary_path, SUPPORTED_UNRAR_BINARIES
 from .pagination import Pagination
 from .redirect import get_redirect_location
@@ -203,7 +203,7 @@ def update_view():
             for param in to_save[element]:
                 current_user.set_view_property(element, param, to_save[element][param])
     except Exception as ex:
-        log.error("Could not save view_settings: %r %r: %e", request, to_save, ex)
+        log.error("Could not save view_settings: %r %r: %s", request, to_save, ex)
         return "Invalid request", 400
     return "1", 200
 
@@ -376,7 +376,12 @@ def generate_char_list(entries): # data_colum, db_link):
     return char_list
 
 
-def get_custom_column_entries(column, order):
+def get_custom_column_entries(column, order, none_first=False):
+    """Return (category, count) entries ordered by ``order``.
+
+    The synthetic "None" entry is not part of the SQL result, so its position has to
+    be chosen explicitly: first when sorting ascending, last when sorting descending.
+    """
     cc_class = db.cc_classes[column.id]
     if getattr(column, 'normalized', False):
         entries = (calibre_db.session.query(cc_class, func.count(db.Books.id).label('count'))
@@ -385,7 +390,8 @@ def get_custom_column_entries(column, order):
                    .group_by(cc_class.id)
                    .order_by(order)
                    .all())
-        formatted_entries = [[db.Category(format_custom_column_value(column, entry[0].value), entry[0].id), entry[1]]
+        formatted_entries = [[db.Category(format_custom_column_value(column, entry[0].value), entry[0].id,
+                                          rating=entry[0].value if column.datatype == 'rating' else None), entry[1]]
                              for entry in entries]
     else:
         entries = (calibre_db.session.query(cc_class.value, func.count(db.Books.id).label('count'))
@@ -394,14 +400,19 @@ def get_custom_column_entries(column, order):
                    .group_by(cc_class.value)
                    .order_by(order)
                    .all())
-        formatted_entries = [[db.Category(format_custom_column_value(column, entry[0]), str(entry[0])), entry[1]]
+        formatted_entries = [[db.Category(format_custom_column_value(column, entry[0]), str(entry[0]),
+                                          rating=entry[0] if column.datatype == 'rating' else None), entry[1]]
                              for entry in entries]
     no_value_count = (calibre_db.session.query(db.Books)
                       .filter(~getattr(db.Books, custom_column_page(column.id)).any())
                       .filter(calibre_db.common_filters())
                       .count())
     if no_value_count:
-        formatted_entries.append([db.Category(_("None"), "none"), no_value_count])
+        none_entry = [db.Category(_("None"), "none"), no_value_count]
+        if none_first:
+            formatted_entries.insert(0, none_entry)
+        else:
+            formatted_entries.append(none_entry)
     return formatted_entries
 
 
@@ -805,19 +816,10 @@ def custom_property_books(column_id, book_id, page):
             val = value.value
             filter_expr = relation.any(db.cc_classes[column_id].id == book_id)
         else:
-            val = book_id
-            if column.datatype == 'bool':
-                val = (str(book_id).lower() == 'true')
-            elif column.datatype == 'int':
-                try: val = int(book_id)
-                except ValueError: abort(404)
-            elif column.datatype == 'float':
-                try: val = float(book_id)
-                except ValueError: abort(404)
-            elif column.datatype == 'datetime':
-                from datetime import datetime
-                try: val = datetime.strptime(book_id[:19], "%Y-%m-%d %H:%M:%S")
-                except ValueError: abort(404)
+            try:
+                val = parse_custom_column_value(column, book_id)
+            except (TypeError, ValueError):
+                abort(404)
             filter_expr = relation.any(db.cc_classes[column_id].value == val)
 
         entries, random, pagination = calibre_db.fill_indexpage(page, 0,
@@ -1144,14 +1146,18 @@ def custom_property_list(column_id):
     if not column or not current_user.check_visibility(constants.SIDEBAR_CATEGORY):
         abort(404)
     page_key = custom_column_page(column_id)
+    # Register the unicode-aware lower() used to sort text/enumeration values.
+    calibre_db.create_functions()
+    value_column = db.cc_classes[column_id].value
+    if column.datatype in ('text', 'enumeration'):
+        value_column = func.lower(value_column)
     if current_user.get_view_property(page_key, 'dir') == 'desc':
-        order = db.cc_classes[column_id].value.desc()
+        order = value_column.desc()
         order_no = 0
     else:
-        order = db.cc_classes[column_id].value.asc()
+        order = value_column.asc()
         order_no = 1
-    entries = get_custom_column_entries(column, order)
-    entries = sorted(entries, key=lambda x: x[0].name.lower(), reverse=not order_no)
+    entries = get_custom_column_entries(column, order, none_first=order_no == 1)
     char_list = generate_char_list(entries)
     return render_title_template('list.html', entries=entries, folder='web.custom_property_books', charlist=char_list,
                                  title=column.name, page=page_key, data=page_key, order=order_no,

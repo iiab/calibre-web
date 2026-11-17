@@ -22,7 +22,7 @@
 
 # custom jinja filters
 
-from markupsafe import escape
+from markupsafe import escape, Markup
 import datetime
 import mimetypes
 from uuid import uuid4
@@ -123,6 +123,27 @@ def formatfloat(value, decimals=1):
     if formated_value.endswith('.' + "0" * decimals):
         formated_value = formated_value.rstrip('0').rstrip('.')
     return formated_value
+
+
+@jinjia.app_template_filter('rating_stars')
+def rating_stars(value):
+    """Render a Calibre rating (0-10) as five stars, keeping half star values visible."""
+    if value is None or value == '':
+        return ''
+    try:
+        rating = float(value) / 2
+    except (TypeError, ValueError):
+        return escape(value)
+    if rating <= 0:
+        # No rating: the list pages render the value's name in this case, and the
+        # previous star markup rendered nothing for zero.
+        return ''
+    full = max(0, min(5, int(rating)))
+    stars = '<span class="glyphicon glyphicon-star good"></span>' * full
+    stars += '<span class="glyphicon glyphicon-star-empty"></span>' * (5 - full)
+    if rating != int(rating):
+        stars += '<span class="rating-value">{}</span>'.format(formatfloat(rating))
+    return Markup('<span class="rating">{}</span>'.format(stars))
 
 
 @jinjia.app_template_filter('escapedlink')
