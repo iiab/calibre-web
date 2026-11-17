@@ -376,7 +376,12 @@ def generate_char_list(entries): # data_colum, db_link):
     return char_list
 
 
-def get_custom_column_entries(column, order):
+def get_custom_column_entries(column, order, none_first=False):
+    """Return (category, count) entries ordered by ``order``.
+
+    The synthetic "None" entry is not part of the SQL result, so its position has to
+    be chosen explicitly: first when sorting ascending, last when sorting descending.
+    """
     cc_class = db.cc_classes[column.id]
     if getattr(column, 'normalized', False):
         entries = (calibre_db.session.query(cc_class, func.count(db.Books.id).label('count'))
@@ -403,7 +408,11 @@ def get_custom_column_entries(column, order):
                       .filter(calibre_db.common_filters())
                       .count())
     if no_value_count:
-        formatted_entries.append([db.Category(_("None"), "none"), no_value_count])
+        none_entry = [db.Category(_("None"), "none"), no_value_count]
+        if none_first:
+            formatted_entries.insert(0, none_entry)
+        else:
+            formatted_entries.append(none_entry)
     return formatted_entries
 
 
@@ -1146,7 +1155,7 @@ def custom_property_list(column_id):
     else:
         order = value_column.asc()
         order_no = 1
-    entries = get_custom_column_entries(column, order)
+    entries = get_custom_column_entries(column, order, none_first=order_no == 1)
     char_list = generate_char_list(entries)
     return render_title_template('list.html', entries=entries, folder='web.custom_property_books', charlist=char_list,
                                  title=column.name, page=page_key, data=page_key, order=order_no,
