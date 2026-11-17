@@ -26,6 +26,7 @@ import json
 import ipaddress
 import operator
 import shutil
+import subprocess
 import time
 import sys
 import string
@@ -138,19 +139,59 @@ def _get_calibredb_binary():
     return shutil.which("calibredb")
 
 
-def _render_custom_properties(form_data=None):
-    custom_columns = calibre_db.session.query(db.CustomColumns).order_by(db.CustomColumns.id).all()
+def _run_calibredb(command, quotes, env, timeout=120):
+    """Run calibredb with no open library session, so Calibre can write to metadata.db."""
+    old_session = g.pop("lib_sql", None)
+    if old_session:
+        old_session.remove()
+    try:
+        process = process_open(command, quotes=quotes, env=env)
+    except OSError as ex:
+        return -1, "", str(ex)
+    try:
+        output, error = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
+        return -1, "", _("calibredb did not finish within %(seconds)s seconds.", seconds=timeout)
+    return process.returncode, output, error
+
+
+def _custom_property_rows():
     sidebar_settings = config.config_custom_sidebar_columns or {}
-    for column in custom_columns:
-        column.supported_in_cw = column.datatype not in db.cc_exceptions
+    visible_ids = {column.id for column in
+                   calibre_db.get_cc_columns(config, filter_config_custom_read=True)}
+    try:
+        columns = calibre_db.session.query(db.CustomColumns).order_by(db.CustomColumns.id).all()
+    except (OperationalError, InvalidRequestError) as ex:
+        log.warning("Unable to load custom columns: %s", ex)
+        columns = []
+    rows = []
+    for column in columns:
+        browseable = (column.id in visible_ids
+                      and column.id in db.cc_classes
+                      and column.datatype in db.browseable_cc_datatypes)
         str_id = str(column.id)
         if str_id in sidebar_settings:
-            column.show_in_sidebar = sidebar_settings[str_id]
+            show_in_sidebar = sidebar_settings[str_id]
         else:
-            column.show_in_sidebar = column.datatype in ('text', 'enumeration', 'rating')
+            show_in_sidebar = browseable and column.datatype in ('text', 'enumeration', 'rating')
+        rows.append({
+            'id': column.id,
+            'label': column.label,
+            'name': column.name,
+            'datatype': column.datatype,
+            'is_multiple': column.is_multiple,
+            'browseable': browseable,
+            'show_in_sidebar': show_in_sidebar,
+        })
+    return rows
+
+
+def _render_custom_properties(form_data=None):
     return render_title_template(
         "custom_properties.html",
-        custom_columns=custom_columns,
+        custom_columns=_custom_property_rows(),
         property_types=_custom_property_type_choices(),
         form_data=form_data or _default_custom_property_form(),
         title=_("Custom Properties"),
@@ -209,15 +250,11 @@ def _create_custom_property():
     command.extend([form_data["label"], form_data["name"], form_data["datatype"]])
 
     quotes = [0, 3, 5, len(command) - 2]
-    process = process_open(command, quotes=quotes, env=my_env)
-    output, error = process.communicate()
-    if process.returncode != 0:
+    returncode, output, error = _run_calibredb(command, quotes, my_env)
+    if returncode != 0:
         flash((error or output or _("Failed to create the custom property.")).strip(), category="error")
         return _render_custom_properties(form_data)
 
-    old_session = g.pop("lib_sql", None)
-    if old_session:
-        old_session.remove()
     calibre_db.reconnect_db(config, ub.app_DB_path)
     flash(_("Custom property %(name)s created successfully.", name=form_data["name"]), category="success")
     return redirect(url_for('admin.custom_properties'))
@@ -377,6 +414,21 @@ def custom_properties():
 @user_login_required
 @admin_required
 def custom_property_delete(label):
+    if not re.match(r'^[a-z][a-z0-9_]*$', label):
+        flash(_("Invalid custom property label."), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
+    column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.label == label).first()
+    if not column:
+        flash(_("Custom property not found."), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
+    column_id = column.id
+    if column_id in (config.config_read_column, config.config_restricted_column):
+        flash(_("Custom property %(name)s is used by the read status or view restriction settings "
+                "and cannot be deleted. Clear those settings first.", name=column.name), category="error")
+        return redirect(url_for('admin.custom_properties'))
+
     calibredb_binary = _get_calibredb_binary()
     if not calibredb_binary:
         flash(_("Calibre's calibredb binary could not be found. Configure the Calibre binaries path or install calibre."),
@@ -392,17 +444,19 @@ def custom_property_delete(label):
         my_env['CALIBRE_OVERRIDE_DATABASE_PATH'] = os.path.join(config.config_calibre_dir, "metadata.db")
 
     command = [calibredb_binary, 'remove_custom_column', '--force', '--with-library', library_path, label]
-    
-    quotes = [0, 4]
-    process = process_open(command, quotes=quotes, env=my_env)
-    output, error = process.communicate()
-    if process.returncode != 0:
+
+    returncode, output, error = _run_calibredb(command, [0, 4], my_env)
+    if returncode != 0:
         flash((error or output or _("Failed to delete the custom property.")).strip(), category="error")
         return redirect(url_for('admin.custom_properties'))
 
-    old_session = g.pop("lib_sql", None)
-    if old_session:
-        old_session.remove()
+    calibre_db.remove_db_cc_class(column_id)
+    sidebar_settings = config.config_custom_sidebar_columns or {}
+    if str(column_id) in sidebar_settings:
+        sidebar_settings = dict(sidebar_settings)
+        sidebar_settings.pop(str(column_id), None)
+        config.config_custom_sidebar_columns = sidebar_settings
+        config.save()
     calibre_db.reconnect_db(config, ub.app_DB_path)
     flash(_("Custom property deleted successfully."), category="success")
     return redirect(url_for('admin.custom_properties'))
@@ -435,7 +489,13 @@ def custom_property_toggle_sidebar(column_id):
     column = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column_id).first()
     if not column:
         return "", 404
-        
+    visible_ids = {col.id for col in
+                   calibre_db.get_cc_columns(config, filter_config_custom_read=True)}
+    if (column.id not in visible_ids
+            or column.id not in db.cc_classes
+            or column.datatype not in db.browseable_cc_datatypes):
+        return "", 400
+
     val = request.form.get("show_in_sidebar") == "true"
     sidebar_settings = config.config_custom_sidebar_columns or {}
     # Create a new dict because SQLAlchemy JSON columns don't detect in-place dict modifications reliably
