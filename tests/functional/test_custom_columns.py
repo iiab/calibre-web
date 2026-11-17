@@ -36,6 +36,12 @@ def _column(column_id, datatype, normalized=True):
                            name='column %s' % column_id, label='column_%s' % column_id)
 
 
+def _unwrap(func):
+    while hasattr(func, '__wrapped__'):
+        func = func.__wrapped__
+    return func
+
+
 def test_get_cc_columns_returns_empty_list_when_custom_columns_table_is_missing():
     calibre_db = CalibreDB()
     mock_session = Mock()
@@ -96,9 +102,9 @@ def test_alchemy_encoder_keeps_registered_custom_columns(monkeypatch):
     assert encoded['custom_column_1'] == 'value'
 
 
-def test_parse_custom_column_value():
+def test_parse_custom_column_value(monkeypatch):
     from cps import cli_param
-    cli_param.gd_path = ':memory:'
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
     from cps.helper import parse_custom_column_value
 
     assert parse_custom_column_value(SimpleNamespace(datatype='bool'), 'True') is True
@@ -120,7 +126,7 @@ def test_parse_custom_column_value():
 
 def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monkeypatch):
     from cps import cli_param
-    cli_param.gd_path = ':memory:'
+    monkeypatch.setattr(cli_param, 'gd_path', ':memory:')
     from cps import admin
 
     config = SimpleNamespace(
@@ -132,7 +138,7 @@ def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monke
     config.list_denied_column_values = lambda: config.config_denied_column_value.split(',')
     monkeypatch.setattr(admin, 'config', config)
 
-    add_restriction = admin.add_restriction.__wrapped__.__wrapped__
+    add_restriction = _unwrap(admin.add_restriction)
     with Flask(__name__).test_request_context(
             '/ajax/addrestriction/1', method='POST',
             data={'submit_allow': '', 'add_element': 'new_allowed'}):
@@ -146,3 +152,30 @@ def test_add_restriction_keeps_custom_column_allow_and_deny_lists_separate(monke
         add_restriction(1, 0)
     assert config.config_allowed_column_value == 'existing_allowed,new_allowed'
     assert config.config_denied_column_value == 'existing_denied,new_denied'
+
+
+def test_is_browseable_cc_column(monkeypatch):
+    monkeypatch.setattr(cps_db, 'cc_classes', {1: object(), 2: object()})
+
+    assert cps_db.is_browseable_cc_column(_column(1, 'text'))
+    assert not cps_db.is_browseable_cc_column(_column(2, 'comments'))
+    assert not cps_db.is_browseable_cc_column(_column(3, 'text'))
+
+
+def test_cc_column_defaults_to_sidebar():
+    assert cps_db.cc_column_defaults_to_sidebar(_column(1, 'rating'))
+    assert not cps_db.cc_column_defaults_to_sidebar(_column(1, 'text', normalized=False))
+    assert not cps_db.cc_column_defaults_to_sidebar(_column(1, 'bool'))
+
+
+def test_rating_stars_does_not_render_unrated_values():
+    from cps.jinjia import rating_stars
+
+    assert rating_stars(0) == ''
+    assert rating_stars('0') == ''
+    assert rating_stars(None) == ''
+
+    rendered = str(rating_stars(9))
+    assert rendered.count('glyphicon-star good') == 4
+    assert rendered.count('glyphicon-star-empty') == 1
+    assert 'rating-value' in rendered
