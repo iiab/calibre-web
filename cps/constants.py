@@ -48,6 +48,12 @@ CACHE_DIRECTORY = os.environ.get(
 # an initial metadata manifest (prior to downloading videos or media) here:
 XKLB_DB_FILE      = os.environ.get("XKLB_DB_FILE", "/library/calibre-web/xklb-metadata.db")
 
+# Let nginx serve library files via X-Accel-Redirect instead of Flask. Only
+# enable this when nginx fronts Calibre-Web and its internal /protected-stream/
+# location aliases the Calibre library root (see scripts/calibre-web-nginx.conf).
+X_ACCEL_REDIRECT = os.environ.get("CALIBRE_X_ACCEL_REDIRECT", "").strip().lower() in \
+    ("1", "true", "yes", "on")
+
 # Maximum number of videos to download, from a playlist or channel
 MAX_VIDEOS_PER_DOWNLOAD = 100
 
