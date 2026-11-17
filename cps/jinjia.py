@@ -134,6 +134,10 @@ def rating_stars(value):
         rating = float(value) / 2
     except (TypeError, ValueError):
         return escape(value)
+    if rating <= 0:
+        # No rating: the list pages render the value's name in this case, and the
+        # previous star markup rendered nothing for zero.
+        return ''
     full = max(0, min(5, int(rating)))
     stars = '<span class="glyphicon glyphicon-star good"></span>' * full
     stars += '<span class="glyphicon glyphicon-star-empty"></span>' * (5 - full)

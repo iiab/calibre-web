@@ -211,10 +211,17 @@
             {% endif %}
 
             {% if c.datatype == 'rating' %}
-              <input type="number" min="0.5" max="5" step="0.5" class="form-control" name="{{ 'custom_column_' ~ c.id }}" id="{{ 'custom_column_' ~ c.id }}"
-                {% if book['custom_column_' ~ c.id]|length > 0 %}
-                    value="{{ '%.1f' % (book['custom_column_' ~ c.id][0].value / 2) }}"
-                {% endif %}>
+              <div class="input-group">
+                <input type="number" min="0.5" max="5" step="0.5" class="form-control" name="{{ 'custom_column_' ~ c.id }}" id="{{ 'custom_column_' ~ c.id }}"
+                  {% if book['custom_column_' ~ c.id]|length > 0 %}
+                      value="{{ '%.1f' % (book['custom_column_' ~ c.id][0].value / 2) }}"
+                  {% endif %}>
+                <span class="input-group-btn">
+                  <button type="button" class="btn btn-default custom-rating-clear" title="{{_('Clear')}}">
+                    <span class="glyphicon glyphicon-remove-circle"></span>
+                  </button>
+                </span>
+              </div>
             {% endif %}
           </div>
         {% endfor %}
@@ -324,6 +331,10 @@
   function removeIdentifierLine(el) {
     $(el).parent().parent().remove();
   }
+
+  $(".custom-rating-clear").on("click", function() {
+    $(this).closest(".input-group").find("input[type=number]").val("");
+  });
 
 </script>
 <script src="{{ url_for('static', filename='js/libs/typeahead.bundle.js') }}"></script>
