@@ -1769,29 +1769,31 @@ def read_book(book_id, book_format):
                     # return serve_book.__closure__[0].cell_contents(book_id, fileExt, anyname="")
                     flash(_("Video streaming via Google Drive is not implemented yet."), category="error")
                     return redirect(url_for("web.index"))
-                else:
-                    video_folder_path = os.path.join(config.get_book_path(), book.path)
-                    absolute_video_file_path = None
+                if not constants.X_ACCEL_REDIRECT:
+                    entries = calibre_db.get_filtered_book(book_id)
+                    return serve_book.__closure__[0].cell_contents(book_id, fileExt, anyname="")
+                video_folder_path = os.path.join(config.get_book_path(), book.path)
+                absolute_video_file_path = None
 
-                    for file_in_dir in os.listdir(video_folder_path):
-                        if file_in_dir.lower().endswith("." + fileExt):
-                            absolute_video_file_path = os.path.join(video_folder_path, file_in_dir)
-                            break
+                for file_in_dir in os.listdir(video_folder_path):
+                    if file_in_dir.lower().endswith("." + fileExt):
+                        absolute_video_file_path = os.path.join(video_folder_path, file_in_dir)
+                        break
 
-                    if not absolute_video_file_path:
-                        log.error(f"No {fileExt} file found for book {book_id} in {video_folder_path}")
-                        flash(_("Oops! Selected book is unavailable. File does not exist or is not accessible"),
-                              category="error")
-                        return redirect(url_for("web.index"))
+                if not absolute_video_file_path:
+                    log.error(f"No {fileExt} file found for book {book_id} in {video_folder_path}")
+                    flash(_("Oops! Selected book is unavailable. File does not exist or is not accessible"),
+                          category="error")
+                    return redirect(url_for("web.index"))
 
-                    accel_response = get_x_accel_redirect_response(
-                        absolute_video_file_path, {"Content-Type": f"video/{fileExt}"})
-                    if accel_response is None:
-                        log.error(f"Video path {absolute_video_file_path} not under book path {config.get_book_path()}")
-                        flash(_("Oops! Video path configuration error."), category="error")
-                        return redirect(url_for("web.index"))
+                accel_response = get_x_accel_redirect_response(
+                    absolute_video_file_path, {"Content-Type": f"video/{fileExt}"})
+                if accel_response is None:
+                    log.error(f"Video path {absolute_video_file_path} not under book path {config.get_book_path()}")
+                    flash(_("Oops! Video path configuration error."), category="error")
+                    return redirect(url_for("web.index"))
 
-                    return accel_response
+                return accel_response
         for fileExt in ["cbr", "cbt", "cbz"]:
             if book_format.lower() == fileExt:
                 all_name = str(book_id)

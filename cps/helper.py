@@ -58,7 +58,7 @@ from .tasks.convert import TaskConvert
 from . import logger, config, db, ub, fs
 from . import gdriveutils as gd
 from .constants import (STATIC_DIR as _STATIC_DIR, CACHE_TYPE_THUMBNAILS, THUMBNAIL_TYPE_COVER, THUMBNAIL_TYPE_SERIES,
-                        SUPPORTED_CALIBRE_BINARIES)
+                        SUPPORTED_CALIBRE_BINARIES, X_ACCEL_REDIRECT)
 from .binary_helper import resolve_binary_path, SUPPORTED_UNRAR_BINARIES
 from .subproc_wrapper import process_wait
 from .services.worker import WorkerThread
@@ -926,11 +926,16 @@ def get_x_accel_redirect_response(file_path, headers=None):
     being read by the Python process. This keeps memory use constant when
     downloading large files.
 
+    Only active when CALIBRE_X_ACCEL_REDIRECT is enabled, because without the
+    matching nginx internal location the response would have no body.
+
     Returns None when the file is outside the library root (for example a
     staged kepubify or calibre-export copy in the temp directory), because
     nginx's internal alias cannot reach it. Callers then fall back to Flask's
     send_from_directory().
     """
+    if not X_ACCEL_REDIRECT:
+        return None
     library_root = config.get_book_path()
     if not library_root:
         return None
