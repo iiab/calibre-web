@@ -395,7 +395,7 @@ def toggle_cc(book_id, column_id):
     if not book:
         return "Book not found", 404
 
-    cc = calibre_db.session.query(db.CustomColumns).filter(db.CustomColumns.id == column_id).first()
+    cc = next((column for column in calibre_db.get_all_cc_columns() if column.id == column_id), None)
     if not cc or cc.datatype != 'bool':
         return "Invalid column", 400
     if column_id not in db.cc_classes:
@@ -409,6 +409,8 @@ def toggle_cc(book_id, column_id):
 
     to_save = {cc_string: 'False' if current_value else 'True'}
     try:
+        # Updating the books row fires Calibre's books_update_trg, which needs title_sort().
+        calibre_db.create_functions(config)
         edit_single_cc_data(book_id, book, column_id, to_save)
         book.last_modified = datetime.now(timezone.utc)
         calibre_db.set_metadata_dirty(book.id)
